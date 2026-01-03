@@ -86,7 +86,7 @@ const Users = () => {
       // Call real API
       await usersAPI.changeUserPermission({
         id: userId,
-        isBan: !currentStatus
+        isBlocked: !currentStatus
       });
       
       // Update local state
@@ -138,10 +138,6 @@ const Users = () => {
       accessor: 'uniqueId'
     },
     {
-      header: 'COINS',
-      accessor: 'coins'
-    },
-    {
       header: 'PLAN',
       accessor: 'plan'
     },
@@ -162,13 +158,7 @@ const Users = () => {
       header: 'ACTION',
       render: (row) => (
         <div className="action-buttons">
-          <button 
-            className="action-btn edit-btn"
-            title="Edit"
-            onClick={() => handleEdit(row.id)}
-          >
-            <FaEdit />
-          </button>
+          
           <button 
             className="action-btn view-btn"
             onClick={() => handleViewProfile(row.id)}
@@ -176,13 +166,7 @@ const Users = () => {
           >
             <FaEye />
           </button>
-          <button 
-            className="action-btn history-btn"
-            title="History"
-            onClick={() => handleHistory(row.id)}
-          >
-            <FaHistory />
-          </button>
+  
         </div>
       )
     }
@@ -196,7 +180,7 @@ const Users = () => {
   return (
     <div className="users-page">
       <div className="page-header">
-        <h2 className="page-title">Real User</h2>
+        <h2 className="page-title">User</h2>
         <div className="search-box">
           <FaSearch className="search-icon" />
           <input

@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { FaEdit, FaTrash, FaEye, FaSearch, FaUserTie, FaEnvelope, FaPhone } from 'react-icons/fa';
 import Modal from '../components/common/Modal';
 import Table from '../components/common/Table';
@@ -6,72 +7,17 @@ import Toggle from '../components/common/Toggle';
 import { useToast } from '../components/common/Toast';
 import { useConfirm } from '../components/common/ConfirmDialog';
 import { SkeletonTable } from '../components/common/Loading';
+import { employeeAPI } from '../services/api';
 import './Employee.css';
 
 const Employee = () => {
   const toast = useToast();
   const confirm = useConfirm();
+  const navigate = useNavigate();
   
-  const [employees, setEmployees] = useState([
-    {
-      id: 1,
-      name: 'John Smith',
-      email: 'john.smith@storybox.com',
-      phone: '+1 234 567 8901',
-      position: 'Content Manager',
-      department: 'Content',
-      salary: 75000,
-      joinDate: '2023-01-15',
-      active: true
-    },
-    {
-      id: 2,
-      name: 'Sarah Johnson',
-      email: 'sarah.j@storybox.com',
-      phone: '+1 234 567 8902',
-      position: 'Senior Developer',
-      department: 'Engineering',
-      salary: 95000,
-      joinDate: '2022-08-20',
-      active: true
-    },
-    {
-      id: 3,
-      name: 'Michael Brown',
-      email: 'michael.b@storybox.com',
-      phone: '+1 234 567 8903',
-      position: 'Marketing Manager',
-      department: 'Marketing',
-      salary: 85000,
-      joinDate: '2023-03-10',
-      active: true
-    },
-    {
-      id: 4,
-      name: 'Emily Davis',
-      email: 'emily.d@storybox.com',
-      phone: '+1 234 567 8904',
-      position: 'HR Specialist',
-      department: 'HR',
-      salary: 65000,
-      joinDate: '2023-06-01',
-      active: true
-    },
-    {
-      id: 5,
-      name: 'David Wilson',
-      email: 'david.w@storybox.com',
-      phone: '+1 234 567 8905',
-      position: 'QA Engineer',
-      department: 'Engineering',
-      salary: 70000,
-      joinDate: '2022-11-15',
-      active: false
-    }
-  ]);
-  
+  const [employees, setEmployees] = useState([]);
   const [searchQuery, setSearchQuery] = useState('');
-  const [filterDepartment, setFilterDepartment] = useState('all');
+  const [filterRole, setFilterRole] = useState('all');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [currentEmployee, setCurrentEmployee] = useState(null);
   const [loading, setLoading] = useState(false);
@@ -79,12 +25,9 @@ const Employee = () => {
     name: '',
     email: '',
     phone: '',
-    position: '',
-    department: '',
-    salary: '',
-    joinDate: '',
-    address: '',
-    emergencyContact: ''
+    password: '',
+    role: '',
+    bio: ''
   });
 
   useEffect(() => {
@@ -94,11 +37,15 @@ const Employee = () => {
   const fetchEmployees = async () => {
     try {
       setLoading(true);
-      await new Promise(resolve => setTimeout(resolve, 800));
-      setLoading(false);
+      const response = await employeeAPI.getAllEmployees();
+      
+      if (response.success && response.data) {
+        setEmployees(response.data.employees || []);
+      }
     } catch (error) {
       console.error('Error fetching employees:', error);
       toast.error('Failed to load employees');
+    } finally {
       setLoading(false);
     }
   };
@@ -109,12 +56,9 @@ const Employee = () => {
       name: '',
       email: '',
       phone: '',
-      position: '',
-      department: '',
-      salary: '',
-      joinDate: '',
-      address: '',
-      emergencyContact: ''
+      password: '',
+      role: '',
+      bio: ''
     });
     setIsModalOpen(true);
   };
@@ -122,15 +66,12 @@ const Employee = () => {
   const handleEdit = (employee) => {
     setCurrentEmployee(employee);
     setFormData({
+      id: employee.id,
       name: employee.name,
       email: employee.email,
       phone: employee.phone,
-      position: employee.position,
-      department: employee.department,
-      salary: employee.salary,
-      joinDate: employee.joinDate,
-      address: employee.address || '',
-      emergencyContact: employee.emergencyContact || ''
+      role: employee.role,
+      bio: employee.bio || ''
     });
     setIsModalOpen(true);
   };
@@ -146,8 +87,14 @@ const Employee = () => {
     if (!confirmed) return;
 
     try {
-      setEmployees(employees.filter(e => e.id !== employeeId));
-      toast.success('Employee deleted successfully');
+      const response = await employeeAPI.deleteEmployee(employeeId);
+      
+      if (response.success) {
+        setEmployees(employees.filter(e => e.id !== employeeId));
+        toast.success('Employee deleted successfully');
+      } else {
+        toast.error(response.message || 'Failed to delete employee');
+      }
     } catch (error) {
       console.error('Error deleting employee:', error);
       toast.error('Failed to delete employee');
@@ -158,52 +105,68 @@ const Employee = () => {
     e.preventDefault();
     
     try {
+      let response;
+      
       if (currentEmployee) {
-        setEmployees(employees.map(e => 
-          e.id === currentEmployee.id ? { ...e, ...formData } : e
-        ));
-        toast.success('Employee updated successfully');
+        // Edit existing employee
+        response = await employeeAPI.updateEmployee(formData);
+        
+        if (response.success) {
+          await fetchEmployees(); // Refresh list
+          toast.success('Employee updated successfully');
+        } else {
+          toast.error(response.message || 'Failed to update employee');
+        }
       } else {
-        const newEmployee = {
-          id: employees.length + 1,
-          ...formData,
-          active: true
-        };
-        setEmployees([...employees, newEmployee]);
-        toast.success('Employee created successfully');
+        // Create new employee
+        response = await employeeAPI.createEmployee(formData);
+        
+        if (response.success) {
+          await fetchEmployees(); // Refresh list
+          toast.success('Employee created successfully');
+        } else {
+          toast.error(response.message || 'Failed to create employee');
+        }
       }
       
       setIsModalOpen(false);
     } catch (error) {
       console.error('Error saving employee:', error);
-      toast.error('Failed to save employee');
+      toast.error(error.message || 'Failed to save employee');
     }
   };
 
-  const handleToggleActive = async (employeeId, currentStatus) => {
+  const handleToggleBlock = async (employeeId, currentStatus) => {
     const confirmed = await confirm({
-      title: currentStatus ? 'Deactivate Employee' : 'Activate Employee',
+      title: currentStatus ? 'Unblock Employee' : 'Block Employee',
       message: currentStatus 
-        ? 'This will mark the employee as inactive.' 
-        : 'This will mark the employee as active.',
-      confirmText: currentStatus ? 'Deactivate' : 'Activate',
+        ? 'This will unblock the employee.' 
+        : 'This will block the employee.',
+      confirmText: currentStatus ? 'Unblock' : 'Block',
       type: 'warning'
     });
 
     if (!confirmed) return;
 
     try {
-      setEmployees(employees.map(e => 
-        e.id === employeeId ? { ...e, active: !currentStatus } : e
-      ));
-      toast.success(currentStatus ? 'Employee deactivated' : 'Employee activated');
+      const response = await employeeAPI.changePermission({
+        id: employeeId,
+        isBlocked: !currentStatus
+      });
+      
+      if (response.success) {
+        await fetchEmployees(); // Refresh list
+        toast.success(currentStatus ? 'Employee unblocked' : 'Employee blocked');
+      } else {
+        toast.error(response.message || 'Failed to update employee status');
+      }
     } catch (error) {
-      console.error('Error toggling active:', error);
+      console.error('Error toggling block status:', error);
       toast.error('Failed to update employee status');
     }
   };
 
-  const departments = [...new Set(employees.map(e => e.department))];
+  const roles = [...new Set(employees.map(e => e.role))];
 
   const getInitials = (name) => {
     return name.split(' ').map(n => n[0]).join('').toUpperCase();
@@ -212,7 +175,7 @@ const Employee = () => {
   const columns = [
     {
       header: 'NO',
-      accessor: 'id',
+      render: (row, index) => index + 1,
       width: '60px'
     },
     {
@@ -220,11 +183,15 @@ const Employee = () => {
       render: (row) => (
         <div className="employee-info-cell">
           <div className="employee-avatar">
-            {getInitials(row.name)}
+            {row.image ? (
+              <img src={row.image} alt={row.name} />
+            ) : (
+              getInitials(row.name)
+            )}
           </div>
           <div>
             <div className="employee-name">{row.name}</div>
-            <div className="employee-position">{row.position}</div>
+            <div className="employee-position">{row.role}</div>
           </div>
         </div>
       )
@@ -245,28 +212,23 @@ const Employee = () => {
       )
     },
     {
-      header: 'DEPARTMENT',
-      accessor: 'department',
+      header: 'ROLE',
+      accessor: 'role',
       render: (row) => (
-        <span className="department-badge">{row.department}</span>
+        <span className="department-badge">{row.role}</span>
       )
     },
     {
-      header: 'SALARY',
-      accessor: 'salary',
-      render: (row) => `$${row.salary.toLocaleString()}`
-    },
-    {
-      header: 'JOIN DATE',
-      accessor: 'joinDate',
-      render: (row) => new Date(row.joinDate).toLocaleDateString()
+      header: 'JOINED DATE',
+      accessor: 'joiningDate',
+      render: (row) => row.joiningDate ? new Date(row.joiningDate).toLocaleDateString() : 'N/A'
     },
     {
       header: 'STATUS',
       render: (row) => (
         <Toggle
-          checked={row.active}
-          onChange={() => handleToggleActive(row.id, row.active)}
+          checked={!row.isBlocked}
+          onChange={() => handleToggleBlock(row.id, row.isBlocked)}
         />
       )
     },
@@ -277,7 +239,7 @@ const Employee = () => {
           <button 
             className="action-btn view-btn" 
             title="View Details"
-            onClick={() => toast.info('View details coming soon!')}
+            onClick={() => navigate(`/employee-profile/${row.id}`)}
           >
             <FaEye />
           </button>
@@ -303,9 +265,9 @@ const Employee = () => {
   const filteredEmployees = employees.filter(employee => {
     const matchesSearch = employee.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
                          employee.email.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                         employee.position.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchesDepartment = filterDepartment === 'all' || employee.department === filterDepartment;
-    return matchesSearch && matchesDepartment;
+                         employee.role.toLowerCase().includes(searchQuery.toLowerCase());
+    const matchesRole = filterRole === 'all' || employee.role === filterRole;
+    return matchesSearch && matchesRole;
   });
 
   return (
@@ -324,16 +286,16 @@ const Employee = () => {
           <div className="stat-label">Total Employees</div>
         </div>
         <div className="employee-stat-card">
-          <div className="stat-value">{employees.filter(e => e.active).length}</div>
+          <div className="stat-value">{employees.filter(e => !e.isBlocked).length}</div>
           <div className="stat-label">Active</div>
         </div>
         <div className="employee-stat-card">
-          <div className="stat-value">{employees.filter(e => !e.active).length}</div>
-          <div className="stat-label">Inactive</div>
+          <div className="stat-value">{employees.filter(e => e.isBlocked).length}</div>
+          <div className="stat-label">Blocked</div>
         </div>
         <div className="employee-stat-card">
-          <div className="stat-value">{departments.length}</div>
-          <div className="stat-label">Departments</div>
+          <div className="stat-value">{roles.length}</div>
+          <div className="stat-label">Roles</div>
         </div>
       </div>
 
@@ -351,25 +313,25 @@ const Employee = () => {
 
         <div className="filter-buttons">
           <button 
-            className={`filter-btn ${filterDepartment === 'all' ? 'active' : ''}`}
-            onClick={() => setFilterDepartment('all')}
+            className={`filter-btn ${filterRole === 'all' ? 'active' : ''}`}
+            onClick={() => setFilterRole('all')}
           >
-            All Departments ({employees.length})
+            All Roles ({employees.length})
           </button>
-          {departments.map(dept => (
+          {roles.map(role => (
             <button 
-              key={dept}
-              className={`filter-btn ${filterDepartment === dept ? 'active' : ''}`}
-              onClick={() => setFilterDepartment(dept)}
+              key={role}
+              className={`filter-btn ${filterRole === role ? 'active' : ''}`}
+              onClick={() => setFilterRole(role)}
             >
-              {dept} ({employees.filter(e => e.department === dept).length})
+              {role} ({employees.filter(e => e.role === role).length})
             </button>
           ))}
         </div>
       </div>
 
       {loading ? (
-        <SkeletonTable rows={5} columns={8} />
+        <SkeletonTable rows={5} columns={7} />
       ) : (
         <Table columns={columns} data={filteredEmployees} />
       )}
@@ -420,85 +382,43 @@ const Employee = () => {
               />
             </div>
 
+            {!currentEmployee && (
+              <div className="form-group">
+                <label className="form-label">Password *</label>
+                <input
+                  type="password"
+                  className="input-field"
+                  placeholder="Enter password"
+                  value={formData.password}
+                  onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                  required
+                />
+              </div>
+            )}
+          </div>
+
+          <div className="form-row">
             <div className="form-group">
-              <label className="form-label">Position *</label>
+              <label className="form-label">Role *</label>
               <input
                 type="text"
                 className="input-field"
-                placeholder="e.g., Senior Developer"
-                value={formData.position}
-                onChange={(e) => setFormData({ ...formData, position: e.target.value })}
+                placeholder="e.g., EMPLOYEE, ADMIN"
+                value={formData.role}
+                onChange={(e) => setFormData({ ...formData, role: e.target.value })}
                 required
-              />
-            </div>
-          </div>
-
-          <div className="form-row">
-            <div className="form-group">
-              <label className="form-label">Department *</label>
-              <select
-                className="input-field"
-                value={formData.department}
-                onChange={(e) => setFormData({ ...formData, department: e.target.value })}
-                required
-              >
-                <option value="">Select department</option>
-                <option value="Engineering">Engineering</option>
-                <option value="Content">Content</option>
-                <option value="Marketing">Marketing</option>
-                <option value="HR">HR</option>
-                <option value="Finance">Finance</option>
-                <option value="Operations">Operations</option>
-                <option value="Sales">Sales</option>
-                <option value="Customer Support">Customer Support</option>
-              </select>
-            </div>
-
-            <div className="form-group">
-              <label className="form-label">Salary (USD) *</label>
-              <input
-                type="number"
-                className="input-field"
-                placeholder="e.g., 75000"
-                value={formData.salary}
-                onChange={(e) => setFormData({ ...formData, salary: e.target.value })}
-                required
-              />
-            </div>
-          </div>
-
-          <div className="form-row">
-            <div className="form-group">
-              <label className="form-label">Join Date *</label>
-              <input
-                type="date"
-                className="input-field"
-                value={formData.joinDate}
-                onChange={(e) => setFormData({ ...formData, joinDate: e.target.value })}
-                required
-              />
-            </div>
-
-            <div className="form-group">
-              <label className="form-label">Emergency Contact</label>
-              <input
-                type="tel"
-                className="input-field"
-                placeholder="+1 234 567 8900"
-                value={formData.emergencyContact}
-                onChange={(e) => setFormData({ ...formData, emergencyContact: e.target.value })}
               />
             </div>
           </div>
 
           <div className="form-group">
-            <label className="form-label">Address</label>
+            <label className="form-label">Bio</label>
             <textarea
               className="input-field"
               rows="3"
-              placeholder="Full address..."
-              value={formData.address}
-              onChange={(e) => setFormData({ ...formData, address: e.target.value })}
+              placeholder="Short bio..."
+              value={formData.bio}
+              onChange={(e) => setFormData({ ...formData, bio: e.target.value })}
             />
           </div>
 

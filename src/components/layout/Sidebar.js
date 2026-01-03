@@ -3,7 +3,7 @@ import { Link, useLocation } from 'react-router-dom';
 import { 
   FaHome, FaUser, FaUserTie, FaFilm, FaList, FaTv, FaVideo, 
   FaCoins, FaCrown, FaHistory, FaLanguage, FaGift, 
-  FaCog, FaUserCircle, FaSignOutAlt 
+  FaCog, FaUserCircle, FaSignOutAlt,FaGlobe
 } from 'react-icons/fa';
 import './Sidebar.css';
 
@@ -26,6 +26,7 @@ const Sidebar = ({ isOpen, onClose }) => {
         { path: '/film-list', icon: FaList, label: 'Film List' },
         { path: '/episode-list', icon: FaTv, label: 'Episode List' },
         { path: '/content', icon: FaVideo, label: 'Content' },
+        { path: '/language', name: 'Language', icon: <FaGlobe /> },
       ]
     },
     { 

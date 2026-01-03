@@ -1,12 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { FaEdit, FaTrash, FaPlus, FaSearch, FaStar } from 'react-icons/fa';
+import { FaEdit, FaTrash, FaPlus, FaSearch, FaStar, FaImage, FaTimes, FaFilm } from 'react-icons/fa';
 import Modal from '../components/common/Modal';
 import Table from '../components/common/Table';
 import Toggle from '../components/common/Toggle';
 import { useToast } from '../components/common/Toast';
 import { useConfirm } from '../components/common/ConfirmDialog';
 import { SkeletonTable } from '../components/common/Loading';
-import { seriesAPI, categoryAPI } from '../services/api';
+import { seriesAPI, categoryAPI, languageAPI } from '../services/api';
 import './FilmList.css';
 
 const FilmList = () => {
@@ -15,70 +15,207 @@ const FilmList = () => {
   
   const [series, setSeries] = useState([]);
   const [categories, setCategories] = useState([]);
+  const [languages, setLanguages] = useState([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [currentSeries, setCurrentSeries] = useState(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [loading, setLoading] = useState(true);
+  const [uploading, setUploading] = useState(false);
+  
+  // Form state
   const [formData, setFormData] = useState({
     name: '',
     description: '',
-    categoryId: '',
-    banner: '',
-    thumbnail: '',
+    categoryIds: [],  // Changed from categoryId to categoryIds (array)
+    languageId: '',   // NEW: Single language selection
     releaseDate: '',
     isTrending: false,
     isActive: true
   });
+  
+  // Image states
+  const [thumbnailPreview, setThumbnailPreview] = useState(null);
+  const [thumbnailFile, setThumbnailFile] = useState(null);
+  const [thumbnailUrl, setThumbnailUrl] = useState(null);
+  
+  const [bannerPreview, setBannerPreview] = useState(null);
+  const [bannerFile, setBannerFile] = useState(null);
+  const [bannerUrl, setBannerUrl] = useState(null);
+  
+  // Pagination
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const itemsPerPage = 10;
 
   useEffect(() => {
     fetchData();
-  }, []);
+  }, [currentPage]);
 
   const fetchData = async () => {
     try {
       setLoading(true);
       
-      // Fetch both series and categories
-      const [seriesResponse, categoriesResponse] = await Promise.all([
-        seriesAPI.getAllSeries(),
-        categoryAPI.getAllCategories()
+      const params = { page: currentPage, limit: itemsPerPage };
+      
+      const [seriesResponse, categoriesResponse, languagesResponse] = await Promise.all([
+        seriesAPI.getAllSeries(params),
+        categoryAPI.getAllCategories(),
+        languageAPI.getAllLanguages()
       ]);
       
+      // Process series data
       if (seriesResponse.success && seriesResponse.data) {
-        const seriesData = Array.isArray(seriesResponse.data) ? seriesResponse.data : 
-                          seriesResponse.data.series ? seriesResponse.data.series : [];
+        const seriesData = Array.isArray(seriesResponse.data) 
+          ? seriesResponse.data 
+          : seriesResponse.data.series || seriesResponse.data.videoSeries || [];
         
-        const transformedSeries = seriesData.map((item) => ({
+        const transformedSeries = seriesData.map((item, index) => ({
           id: item.id,
-          uniqueId: item.uniqueId || `#SER${item.id.substring(0, 6)}`,
-          name: item.name,
+          uniqueId: item.uniqueId || `#SER${item.id?.substring(0, 6) || index}`,
+          name: item.name || 'Untitled',
           description: item.description || '',
-          categoryId: item.categoryId,
-          categoryName: item.categoryName || 'Unknown',
+          categoryIds: item.categoryIds || item.categoryId ? [item.categoryId] : [],
+          languageId: item.languageId || '',
           banner: item.banner || '',
           thumbnail: item.thumbnail || '',
-          releaseDate: item.releaseDate ? new Date(item.releaseDate).toLocaleDateString('en-GB') : '',
+          releaseDate: item.releaseDate 
+            ? new Date(item.releaseDate).toLocaleDateString('en-GB') 
+            : '',
           isTrending: item.isTrending || false,
           isActive: item.isActive !== false,
-          createdAt: item.createdAt ? new Date(item.createdAt).toLocaleDateString('en-GB') : ''
+          totalEpisodes: item.totalEpisodes || 0,
+          createdAt: item.createdAt 
+            ? new Date(item.createdAt).toLocaleDateString('en-GB') 
+            : new Date().toLocaleDateString('en-GB')
         }));
         
         setSeries(transformedSeries);
-        console.log('Series loaded:', transformedSeries.length);
+        
+        const total = seriesResponse.data.total || seriesResponse.data.totalSeries || seriesData.length;
+        setTotalPages(Math.ceil(total / itemsPerPage));
       }
       
+      // Process categories
       if (categoriesResponse.success && categoriesResponse.data) {
-        const categoriesData = Array.isArray(categoriesResponse.data) ? categoriesResponse.data :
-                               categoriesResponse.data.categories ? categoriesResponse.data.categories : [];
-        setCategories(categoriesData);
+        const categoriesData = Array.isArray(categoriesResponse.data)
+          ? categoriesResponse.data
+          : categoriesResponse.data.categories || [];
+        setCategories(categoriesData.filter(cat => cat.isActive !== false));
+      }
+      
+      // Process languages
+      if (languagesResponse.success && languagesResponse.data) {
+        const languagesData = Array.isArray(languagesResponse.data)
+          ? languagesResponse.data
+          : languagesResponse.data.languages || [];
+        setLanguages(languagesData.filter(lang => lang.isActive !== false));
       }
       
     } catch (error) {
       console.error('Error fetching data:', error);
-      toast.error(error.message || 'Failed to load series');
+      toast.error(error.message || 'Failed to load data');
     } finally {
       setLoading(false);
     }
+  };
+
+  const getCategoryNames = (categoryIds) => {
+    if (!categoryIds || categoryIds.length === 0) return 'N/A';
+    const names = categoryIds
+      .map(id => categories.find(cat => cat.id === id)?.name)
+      .filter(Boolean);
+    return names.length > 0 ? names.join(', ') : 'N/A';
+  };
+
+  const getLanguageName = (languageId) => {
+    if (!languageId) return 'N/A';
+    const language = languages.find(lang => lang.id === languageId);
+    return language?.name || 'N/A';
+  };
+
+  const handleImageSelect = (type, e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error('Image size must be less than 5MB');
+      return;
+    }
+    
+    if (!file.type.startsWith('image/')) {
+      toast.error('Please select a valid image file');
+      return;
+    }
+    
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      if (type === 'thumbnail') {
+        setThumbnailFile(file);
+        setThumbnailPreview(reader.result);
+      } else {
+        setBannerFile(file);
+        setBannerPreview(reader.result);
+      }
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const clearImage = (type) => {
+    if (type === 'thumbnail') {
+      setThumbnailFile(null);
+      setThumbnailPreview(null);
+      setThumbnailUrl(null);
+    } else {
+      setBannerFile(null);
+      setBannerPreview(null);
+      setBannerUrl(null);
+    }
+  };
+
+  const uploadImage = async (file, type) => {
+    try {
+      const presignResponse = type === 'thumbnail'
+        ? await seriesAPI.getThumbnailUploadUrl({ 
+            fileName: file.name, 
+            contentType: file.type 
+          })
+        : await seriesAPI.getBannerUploadUrl({ 
+            fileName: file.name, 
+            contentType: file.type 
+          });
+      
+      if (!presignResponse.success || !presignResponse.data) {
+        throw new Error(`Failed to get ${type} upload URL`);
+      }
+      
+      const { uploadUrl, publicS3Url } = presignResponse.data;
+      
+      const uploadSuccess = await seriesAPI.uploadToS3(uploadUrl, file);
+      
+      if (!uploadSuccess) {
+        throw new Error(`Failed to upload ${type}`);
+      }
+      
+      return publicS3Url;
+    } catch (error) {
+      console.error(`Error uploading ${type}:`, error);
+      throw error;
+    }
+  };
+
+  const handleCategoryToggle = (categoryId) => {
+    setFormData(prev => {
+      const categoryIds = [...prev.categoryIds];
+      const index = categoryIds.indexOf(categoryId);
+      
+      if (index > -1) {
+        categoryIds.splice(index, 1);
+      } else {
+        categoryIds.push(categoryId);
+      }
+      
+      return { ...prev, categoryIds };
+    });
   };
 
   const handleAdd = () => {
@@ -86,13 +223,14 @@ const FilmList = () => {
     setFormData({
       name: '',
       description: '',
-      categoryId: '',
-      banner: '',
-      thumbnail: '',
+      categoryIds: [],
+      languageId: '',
       releaseDate: '',
       isTrending: false,
       isActive: true
     });
+    clearImage('thumbnail');
+    clearImage('banner');
     setIsModalOpen(true);
   };
 
@@ -101,13 +239,20 @@ const FilmList = () => {
     setFormData({
       name: seriesItem.name,
       description: seriesItem.description,
-      categoryId: seriesItem.categoryId,
-      banner: seriesItem.banner,
-      thumbnail: seriesItem.thumbnail,
+      categoryIds: seriesItem.categoryIds || [],
+      languageId: seriesItem.languageId || '',
       releaseDate: seriesItem.releaseDate,
       isTrending: seriesItem.isTrending,
       isActive: seriesItem.isActive
     });
+    
+    setThumbnailPreview(seriesItem.thumbnail);
+    setThumbnailUrl(seriesItem.thumbnail);
+    setBannerPreview(seriesItem.banner);
+    setBannerUrl(seriesItem.banner);
+    
+    setThumbnailFile(null);
+    setBannerFile(null);
     setIsModalOpen(true);
   };
 
@@ -122,9 +267,14 @@ const FilmList = () => {
     if (!confirmed) return;
 
     try {
-      await seriesAPI.deleteSeries(id);
-      setSeries(series.filter(item => item.id !== id));
-      toast.success('Series deleted successfully');
+      const response = await seriesAPI.deleteSeries(id);
+      
+      if (response.success) {
+        setSeries(series.filter(item => item.id !== id));
+        toast.success('Series deleted successfully');
+      } else {
+        toast.error(response.message || 'Failed to delete series');
+      }
     } catch (error) {
       console.error('Error deleting series:', error);
       toast.error(error.message || 'Failed to delete series');
@@ -135,18 +285,27 @@ const FilmList = () => {
     try {
       const seriesItem = series.find(item => item.id === id);
       
-      await seriesAPI.updateSeries({
+      const response = await seriesAPI.updateSeries({
         id: id,
         name: seriesItem.name,
-        categoryId: seriesItem.categoryId,
+        categoryIds: seriesItem.categoryIds,
+        languageId: seriesItem.languageId,
+        description: seriesItem.description,
+        thumbnail: seriesItem.thumbnail,
+        banner: seriesItem.banner,
         [field]: !currentStatus
       });
       
-      setSeries(series.map(item =>
-        item.id === id ? { ...item, [field]: !currentStatus } : item
-      ));
-      
-      toast.success(`Series ${!currentStatus ? 'activated' : 'deactivated'} successfully`);
+      if (response.success) {
+        setSeries(series.map(item =>
+          item.id === id ? { ...item, [field]: !currentStatus } : item
+        ));
+        
+        const fieldName = field === 'isTrending' ? 'trending' : 'active';
+        toast.success(`Series ${!currentStatus ? 'marked as' : 'unmarked as'} ${fieldName}`);
+      } else {
+        toast.error(response.message || 'Failed to update series');
+      }
     } catch (error) {
       console.error('Error toggling series:', error);
       toast.error(error.message || 'Failed to update series');
@@ -156,49 +315,167 @@ const FilmList = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     
-    if (!formData.name || !formData.categoryId) {
-      toast.error('Please fill in all required fields');
+    if (!formData.name.trim()) {
+      toast.error('Series name is required');
+      return;
+    }
+    
+    if (formData.categoryIds.length === 0) {
+      toast.error('Please select at least one category');
+      return;
+    }
+    
+    if (!formData.languageId) {
+      toast.error('Please select a language');
       return;
     }
 
     try {
+      setUploading(true);
+      
+      let finalThumbnailUrl = thumbnailUrl;
+      let finalBannerUrl = bannerUrl;
+      
+      if (thumbnailFile) {
+        finalThumbnailUrl = await uploadImage(thumbnailFile, 'thumbnail');
+      }
+      
+      if (bannerFile) {
+        finalBannerUrl = await uploadImage(bannerFile, 'banner');
+      }
+      
+      const seriesData = {
+        name: formData.name.trim(),
+        description: formData.description.trim(),
+        categoryIds: formData.categoryIds,
+        languageId: formData.languageId,
+        thumbnail: finalThumbnailUrl || '',
+        banner: finalBannerUrl || '',
+        releaseDate: formData.releaseDate || null,
+        isTrending: formData.isTrending,
+        isActive: formData.isActive
+      };
+      
       if (currentSeries) {
-        await seriesAPI.updateSeries({
-          id: currentSeries.id,
-          ...formData
-        });
-        toast.success('Series updated successfully');
+        seriesData.id = currentSeries.id;
+        const response = await seriesAPI.updateSeries(seriesData);
+        
+        if (response.success) {
+          toast.success('Series updated successfully');
+          fetchData();
+        } else {
+          toast.error(response.message || 'Failed to update series');
+        }
       } else {
-        await seriesAPI.createSeries(formData);
-        toast.success('Series created successfully');
+        const response = await seriesAPI.createSeries(seriesData);
+        
+        if (response.success) {
+          toast.success('Series created successfully');
+          fetchData();
+        } else {
+          toast.error(response.message || 'Failed to create series');
+        }
       }
       
       setIsModalOpen(false);
-      fetchData();
+      clearImage('thumbnail');
+      clearImage('banner');
     } catch (error) {
       console.error('Error saving series:', error);
       toast.error(error.message || 'Failed to save series');
+    } finally {
+      setUploading(false);
     }
   };
 
   const filteredSeries = series.filter(item =>
     item.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    (item.description && item.description.toLowerCase().includes(searchQuery.toLowerCase()))
+    (item.description && item.description.toLowerCase().includes(searchQuery.toLowerCase())) ||
+    item.uniqueId.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
   const columns = [
-    { header: 'NO', accessor: 'id', width: '60px' },
-    { header: 'UNIQUE ID', accessor: 'uniqueId' },
-    { header: 'NAME', accessor: 'name' },
-    { header: 'CATEGORY', accessor: 'categoryName' },
-    { header: 'RELEASE DATE', accessor: 'releaseDate' },
+    {
+      header: 'NO',
+      render: (row, index) => (currentPage - 1) * itemsPerPage + index + 1,
+      width: '60px'
+    },
+    {
+      header: 'UNIQUE ID',
+      render: (row) => (
+        <span className="unique-id">{row.uniqueId}</span>
+      )
+    },
+    {
+      header: 'THUMBNAIL',
+      render: (row) => (
+        <div className="series-thumbnail">
+          {row.thumbnail ? (
+            <img src={row.thumbnail} alt={row.name} />
+          ) : (
+            <div className="no-image"><FaImage /></div>
+          )}
+        </div>
+      )
+    },
+    {
+      header: 'BANNER',
+      render: (row) => (
+        <div className="series-banner-mini">
+          {row.banner ? (
+            <img src={row.banner} alt={row.name} />
+          ) : (
+            <div className="no-image"><FaFilm /></div>
+          )}
+        </div>
+      )
+    },
+    {
+      header: 'SERIES INFO',
+      render: (row) => (
+        <div className="series-info-cell">
+          <div className="series-name">{row.name}</div>
+          {row.description && (
+            <div className="series-desc">{row.description}</div>
+          )}
+        </div>
+      )
+    },
+    {
+      header: 'CATEGORIES',
+      render: (row) => {
+        const categoryNames = getCategoryNames(row.categoryIds);
+        return (
+          <div className="category-badges">
+            {categoryNames.split(', ').map((name, idx) => (
+              <span key={idx} className="category-badge">{name}</span>
+            ))}
+          </div>
+        );
+      }
+    },
+    {
+      header: 'LANGUAGE',
+      render: (row) => (
+        <span className="language-badge">{getLanguageName(row.languageId)}</span>
+      )
+    },
+    {
+      header: 'EPISODES',
+      render: (row) => (
+        <span className="episode-count">{row.totalEpisodes}</span>
+      )
+    },
     {
       header: 'TRENDING',
       render: (row) => (
-        <Toggle
-          checked={row.isTrending}
-          onChange={() => handleToggle(row.id, 'isTrending', row.isTrending)}
-        />
+        <div className="toggle-with-icon">
+          <Toggle
+            checked={row.isTrending}
+            onChange={() => handleToggle(row.id, 'isTrending', row.isTrending)}
+          />
+          {row.isTrending && <FaStar className="trending-star" />}
+        </div>
       )
     },
     {
@@ -235,6 +512,7 @@ const FilmList = () => {
 
   return (
     <div className="film-list-page">
+      {/* Page Header */}
       <div className="page-header">
         <h2 className="page-title">Film / Series List</h2>
         <div className="header-actions">
@@ -254,8 +532,9 @@ const FilmList = () => {
         </div>
       </div>
 
+      {/* Table */}
       {loading ? (
-        <SkeletonTable rows={5} columns={8} />
+        <SkeletonTable rows={5} columns={11} />
       ) : (
         <Table
           columns={columns}
@@ -264,68 +543,191 @@ const FilmList = () => {
         />
       )}
 
+      {/* Pagination */}
+      {!loading && totalPages > 1 && (
+        <div className="pagination">
+          <span>Showing {currentPage} out of {totalPages} pages</span>
+          <div className="pagination-controls">
+            <button
+              className="pagination-btn"
+              onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+              disabled={currentPage === 1}
+            >
+              &lt;
+            </button>
+            {[...Array(Math.min(5, totalPages))].map((_, idx) => {
+              let pageNum;
+              if (totalPages <= 5) {
+                pageNum = idx + 1;
+              } else if (currentPage <= 3) {
+                pageNum = idx + 1;
+              } else if (currentPage >= totalPages - 2) {
+                pageNum = totalPages - 4 + idx;
+              } else {
+                pageNum = currentPage - 2 + idx;
+              }
+              
+              return (
+                <button
+                  key={pageNum}
+                  className={`pagination-btn ${currentPage === pageNum ? 'active' : ''}`}
+                  onClick={() => setCurrentPage(pageNum)}
+                >
+                  {pageNum}
+                </button>
+              );
+            })}
+            <button
+              className="pagination-btn"
+              onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+              disabled={currentPage === totalPages}
+            >
+              &gt;
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Add/Edit Modal */}
       <Modal
         isOpen={isModalOpen}
-        onClose={() => setIsModalOpen(false)}
+        onClose={() => {
+          setIsModalOpen(false);
+          clearImage('thumbnail');
+          clearImage('banner');
+        }}
         title={currentSeries ? 'Edit Series' : 'Add New Series'}
+        size="large"
       >
-        <form onSubmit={handleSubmit}>
+        <form onSubmit={handleSubmit} className="series-form">
+          {/* Thumbnail Upload */}
           <div className="form-group">
-            <label>Series Name *</label>
+            <label className="form-label">Thumbnail Image *</label>
+            <div className="image-upload-section">
+              {thumbnailPreview ? (
+                <div className="image-preview-container">
+                  <div className="image-preview thumbnail-preview">
+                    <img src={thumbnailPreview} alt="Thumbnail" />
+                    <button
+                      type="button"
+                      className="remove-image-btn"
+                      onClick={() => clearImage('thumbnail')}
+                    >
+                      <FaTimes />
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <label className="image-upload-box">
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={(e) => handleImageSelect('thumbnail', e)}
+                    className="file-input-hidden"
+                  />
+                  <div className="upload-placeholder">
+                    <FaImage className="upload-icon" />
+                    <span className="upload-text">Upload Thumbnail</span>
+                    <span className="upload-hint">Portrait • Max 5MB</span>
+                  </div>
+                </label>
+              )}
+            </div>
+          </div>
+
+          {/* Banner Upload */}
+          <div className="form-group">
+            <label className="form-label">Banner Image *</label>
+            <div className="image-upload-section">
+              {bannerPreview ? (
+                <div className="image-preview-container">
+                  <div className="image-preview banner-preview">
+                    <img src={bannerPreview} alt="Banner" />
+                    <button
+                      type="button"
+                      className="remove-image-btn"
+                      onClick={() => clearImage('banner')}
+                    >
+                      <FaTimes />
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <label className="image-upload-box">
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={(e) => handleImageSelect('banner', e)}
+                    className="file-input-hidden"
+                  />
+                  <div className="upload-placeholder">
+                    <FaFilm className="upload-icon" />
+                    <span className="upload-text">Upload Banner</span>
+                    <span className="upload-hint">Landscape • Max 5MB</span>
+                  </div>
+                </label>
+              )}
+            </div>
+          </div>
+
+          {/* Series Name */}
+          <div className="form-group">
+            <label className="form-label">Series Name *</label>
             <input
               type="text"
               value={formData.name}
               onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+              placeholder="Enter series name"
               required
             />
           </div>
 
+          {/* Categories (Multiple Selection) */}
           <div className="form-group">
-            <label>Description</label>
-            <textarea
-              value={formData.description}
-              onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-              rows="3"
-            />
+            <label className="form-label">Categories * (Select Multiple)</label>
+            <div className="category-checkboxes">
+              {categories.map(cat => (
+                <label key={cat.id} className="category-checkbox-item">
+                  <input
+                    type="checkbox"
+                    checked={formData.categoryIds.includes(cat.id)}
+                    onChange={() => handleCategoryToggle(cat.id)}
+                  />
+                  <span>{cat.name}</span>
+                </label>
+              ))}
+            </div>
           </div>
 
+          {/* Language (Single Selection) */}
           <div className="form-group">
-            <label>Category *</label>
+            <label className="form-label">Language *</label>
             <select
-              value={formData.categoryId}
-              onChange={(e) => setFormData({ ...formData, categoryId: e.target.value })}
+              value={formData.languageId}
+              onChange={(e) => setFormData({ ...formData, languageId: e.target.value })}
               required
             >
-              <option value="">Select Category</option>
-              {categories.map(cat => (
-                <option key={cat.id} value={cat.id}>{cat.name}</option>
+              <option value="">Select Language</option>
+              {languages.map(lang => (
+                <option key={lang.id} value={lang.id}>{lang.name}</option>
               ))}
             </select>
           </div>
 
+          {/* Description */}
           <div className="form-group">
-            <label>Banner URL</label>
-            <input
-              type="text"
-              value={formData.banner}
-              onChange={(e) => setFormData({ ...formData, banner: e.target.value })}
-              placeholder="https://..."
+            <label className="form-label">Description</label>
+            <textarea
+              value={formData.description}
+              onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+              placeholder="Enter series description"
+              rows="4"
             />
           </div>
 
+          {/* Release Date */}
           <div className="form-group">
-            <label>Thumbnail URL</label>
-            <input
-              type="text"
-              value={formData.thumbnail}
-              onChange={(e) => setFormData({ ...formData, thumbnail: e.target.value })}
-              placeholder="https://..."
-            />
-          </div>
-
-          <div className="form-group">
-            <label>Release Date</label>
+            <label className="form-label">Release Date</label>
             <input
               type="date"
               value={formData.releaseDate}
@@ -333,34 +735,51 @@ const FilmList = () => {
             />
           </div>
 
-          <div className="form-group checkbox-group">
-            <label>
-              <input
-                type="checkbox"
-                checked={formData.isTrending}
-                onChange={(e) => setFormData({ ...formData, isTrending: e.target.checked })}
-              />
-              Trending
-            </label>
+          {/* Checkboxes */}
+          <div className="checkbox-row">
+            <div className="checkbox-group">
+              <label>
+                <input
+                  type="checkbox"
+                  checked={formData.isTrending}
+                  onChange={(e) => setFormData({ ...formData, isTrending: e.target.checked })}
+                />
+                <span>Mark as Trending</span>
+              </label>
+            </div>
+
+            <div className="checkbox-group">
+              <label>
+                <input
+                  type="checkbox"
+                  checked={formData.isActive}
+                  onChange={(e) => setFormData({ ...formData, isActive: e.target.checked })}
+                />
+                <span>Active Status</span>
+              </label>
+            </div>
           </div>
 
-          <div className="form-group checkbox-group">
-            <label>
-              <input
-                type="checkbox"
-                checked={formData.isActive}
-                onChange={(e) => setFormData({ ...formData, isActive: e.target.checked })}
-              />
-              Active
-            </label>
-          </div>
-
+          {/* Actions */}
           <div className="form-actions">
-            <button type="button" className="btn-secondary" onClick={() => setIsModalOpen(false)}>
+            <button
+              type="button"
+              className="btn-secondary"
+              onClick={() => {
+                setIsModalOpen(false);
+                clearImage('thumbnail');
+                clearImage('banner');
+              }}
+              disabled={uploading}
+            >
               Cancel
             </button>
-            <button type="submit" className="btn-primary">
-              {currentSeries ? 'Update' : 'Create'} Series
+            <button
+              type="submit"
+              className="btn-primary"
+              disabled={uploading}
+            >
+              {uploading ? 'Uploading...' : currentSeries ? 'Update Series' : 'Create Series'}
             </button>
           </div>
         </form>

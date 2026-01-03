@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { FaEdit, FaTrash, FaPlus } from 'react-icons/fa';
+import { FaEdit, FaTrash, FaPlus, FaSearch, FaImage, FaTimes } from 'react-icons/fa';
 import Table from '../components/common/Table';
 import Toggle from '../components/common/Toggle';
 import Modal from '../components/common/Modal';
@@ -12,41 +12,62 @@ import './FilmCategory.css';
 const FilmCategory = () => {
   const toast = useToast();
   const confirm = useConfirm();
+  
   const [categories, setCategories] = useState([]);
+  const [filteredCategories, setFilteredCategories] = useState([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [currentCategory, setCurrentCategory] = useState(null);
-  const [formData, setFormData] = useState({ name: '', description: '', isActive: true });
   const [loading, setLoading] = useState(true);
+  const [uploading, setUploading] = useState(false);
+  
+  // Form state
+  const [formData, setFormData] = useState({
+    name: '',
+    description: '',
+    isActive: true,
+    image: null
+  });
+  const [imagePreview, setImagePreview] = useState(null);
+  const [imageFile, setImageFile] = useState(null);
+  
+  // Search & Pagination
+  const [searchQuery, setSearchQuery] = useState('');
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const itemsPerPage = 10;
 
   useEffect(() => {
     fetchCategories();
-  }, []);
+  }, [currentPage]);
+
+  useEffect(() => {
+    handleSearch();
+  }, [searchQuery, categories]);
 
   const fetchCategories = async () => {
     try {
       setLoading(true);
-      const response = await categoryAPI.getAllCategories();
+      const params = {
+        page: currentPage,
+        limit: itemsPerPage
+      };
+      
+      const response = await categoryAPI.getAllCategories(params);
       
       if (response.success && response.data) {
-        // Transform API data
-        const categoriesData = Array.isArray(response.data) ? response.data : 
-                              response.data.categories ? response.data.categories : [];
+        const categoriesData = Array.isArray(response.data) 
+          ? response.data 
+          : response.data.categories || [];
         
-        const transformedCategories = categoriesData.map((cat, index) => ({
-          id: cat.id,
-          uniqueId: cat.uniqueId || `#CAT${cat.id.substring(0, 6)}`,
-          name: cat.name,
-          description: cat.description || '',
-          image: cat.image || cat.thumbnail || '',
-          totalMovies: cat.totalMovies || cat.seriesCount || 0,
-          date: cat.createdAt ? new Date(cat.createdAt).toLocaleDateString('en-GB') : new Date().toLocaleDateString('en-GB'),
-          active: cat.isActive !== false
-        }));
+        setCategories(categoriesData);
+        setFilteredCategories(categoriesData);
         
-        setCategories(transformedCategories);
-        console.log('Categories loaded:', transformedCategories.length);
+        // Calculate total pages
+        const total = response.data.total || response.data.totalCategories || categoriesData.length;
+        setTotalPages(Math.ceil(total / itemsPerPage));
+        
+        console.log('Categories loaded:', categoriesData.length);
       } else {
-        console.error('API response:', response);
         toast.error('Failed to load categories');
       }
     } catch (error) {
@@ -57,19 +78,98 @@ const FilmCategory = () => {
     }
   };
 
+  const handleSearch = () => {
+    if (!searchQuery.trim()) {
+      setFilteredCategories(categories);
+      return;
+    }
+    
+    const filtered = categories.filter(cat =>
+      cat.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      cat.description?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      cat.uniqueId?.toLowerCase().includes(searchQuery.toLowerCase())
+    );
+    
+    setFilteredCategories(filtered);
+  };
+
+  const handleImageSelect = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      if (file.size > 5 * 1024 * 1024) {
+        toast.error('Image size must be less than 5MB');
+        return;
+      }
+      
+      if (!file.type.startsWith('image/')) {
+        toast.error('Please select a valid image file');
+        return;
+      }
+      
+      setImageFile(file);
+      
+      // Create preview
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setImagePreview(reader.result);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const clearImage = () => {
+    setImageFile(null);
+    setImagePreview(null);
+    setFormData({ ...formData, image: null });
+  };
+
+  const uploadImage = async (file) => {
+    try {
+      // Step 1: Get presigned URL
+      const presignResponse = await categoryAPI.getThumbnailUploadUrl({
+        fileName: file.name,
+        contentType: file.type
+      });
+      
+      if (!presignResponse.success || !presignResponse.data) {
+        throw new Error('Failed to get upload URL');
+      }
+      
+      const { uploadUrl, publicS3Url } = presignResponse.data;
+      
+      // Step 2: Upload to S3
+      const uploadSuccess = await categoryAPI.uploadToS3(uploadUrl, file);
+      
+      if (!uploadSuccess) {
+        throw new Error('Failed to upload image');
+      }
+      
+      // Step 3: Return public URL
+      return publicS3Url;
+    } catch (error) {
+      console.error('Error uploading image:', error);
+      throw error;
+    }
+  };
+
   const handleAdd = () => {
     setCurrentCategory(null);
-    setFormData({ name: '', description: '', isActive: true });
+    setFormData({ name: '', description: '', isActive: true, image: null });
+    setImagePreview(null);
+    setImageFile(null);
     setIsModalOpen(true);
   };
 
   const handleEdit = (category) => {
     setCurrentCategory(category);
-    setFormData({ 
-      name: category.name, 
+    setFormData({
+      name: category.name,
       description: category.description || '',
-      isActive: category.active 
+      isActive: category.isActive !== false,
+      image: category.image || category.thumbnail
     });
+    setImagePreview(category.image || category.thumbnail);
+    setImageFile(null);
     setIsModalOpen(true);
   };
 
@@ -84,9 +184,14 @@ const FilmCategory = () => {
     if (!confirmed) return;
 
     try {
-      await categoryAPI.deleteCategory(id);
-      setCategories(categories.filter(cat => cat.id !== id));
-      toast.success('Category deleted successfully');
+      const response = await categoryAPI.deleteCategory(id);
+      
+      if (response.success) {
+        setCategories(categories.filter(cat => cat.id !== id));
+        toast.success('Category deleted successfully');
+      } else {
+        toast.error(response.message || 'Failed to delete category');
+      }
     } catch (error) {
       console.error('Error deleting category:', error);
       toast.error(error.message || 'Failed to delete category');
@@ -95,23 +200,19 @@ const FilmCategory = () => {
 
   const handleToggle = async (id, currentStatus) => {
     try {
-      // Find the category
-      const category = categories.find(cat => cat.id === id);
-      
-      // Update via API
-      await categoryAPI.updateCategory({
+      const response = await categoryAPI.changeIsActive({
         id: id,
-        name: category.name,
-        description: category.description,
         isActive: !currentStatus
       });
       
-      // Update local state
-      setCategories(categories.map(cat => 
-        cat.id === id ? { ...cat, active: !currentStatus } : cat
-      ));
-      
-      toast.success(`Category ${!currentStatus ? 'activated' : 'deactivated'} successfully`);
+      if (response.success) {
+        setCategories(categories.map(cat =>
+          cat.id === id ? { ...cat, isActive: !currentStatus } : cat
+        ));
+        toast.success(`Category ${!currentStatus ? 'activated' : 'deactivated'} successfully`);
+      } else {
+        toast.error(response.message || 'Failed to update category status');
+      }
     } catch (error) {
       console.error('Error toggling category:', error);
       toast.error(error.message || 'Failed to update category status');
@@ -120,54 +221,119 @@ const FilmCategory = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    
+    if (!formData.name.trim()) {
+      toast.error('Category name is required');
+      return;
+    }
+    
     try {
+      setUploading(true);
+      
+      let imageUrl = formData.image;
+      
+      // Upload new image if selected
+      if (imageFile) {
+        imageUrl = await uploadImage(imageFile);
+      }
+      
+      const categoryData = {
+        name: formData.name.trim(),
+        description: formData.description.trim(),
+        isActive: formData.isActive,
+        image: imageUrl || ''
+      };
+      
       if (currentCategory) {
         // Update existing category
-        await categoryAPI.updateCategory({
-          id: currentCategory.id,
-          name: formData.name,
-          description: formData.description,
-          isActive: formData.isActive
-        });
-        toast.success('Category updated successfully');
+        categoryData.id = currentCategory.id;
+        const response = await categoryAPI.updateCategory(categoryData);
+        
+        if (response.success) {
+          toast.success('Category updated successfully');
+          fetchCategories();
+        } else {
+          toast.error(response.message || 'Failed to update category');
+        }
       } else {
         // Create new category
-        await categoryAPI.createCategory({
-          name: formData.name,
-          description: formData.description,
-          isActive: formData.isActive
-        });
-        toast.success('Category created successfully');
+        const response = await categoryAPI.createCategory(categoryData);
+        
+        if (response.success) {
+          toast.success('Category created successfully');
+          fetchCategories();
+        } else {
+          toast.error(response.message || 'Failed to create category');
+        }
       }
       
       setIsModalOpen(false);
-      fetchCategories(); // Refresh the list
+      clearImage();
     } catch (error) {
       console.error('Error saving category:', error);
       toast.error(error.message || 'Failed to save category');
+    } finally {
+      setUploading(false);
     }
   };
 
   const columns = [
-    { header: 'NO', accessor: 'id', width: '60px' },
-    { header: 'UNIQUE ID', accessor: 'uniqueId' },
+    {
+      header: 'NO',
+      render: (row, index) => (currentPage - 1) * itemsPerPage + index + 1,
+      width: '60px'
+    },
+    {
+      header: 'UNIQUE ID',
+      render: (row) => (
+        <span className="unique-id">{row.uniqueId || `#CAT${row.id?.substring(0, 6)}`}</span>
+      )
+    },
     {
       header: 'CATEGORY IMAGE',
       render: (row) => (
         <div className="category-image">
-          <img src={row.image} alt={row.name} />
+          {row.image || row.thumbnail ? (
+            <img src={row.image || row.thumbnail} alt={row.name} />
+          ) : (
+            <div className="no-image">
+              <FaImage />
+            </div>
+          )}
         </div>
       )
     },
-    { header: 'CATEGORY NAME', accessor: 'name' },
-    { header: 'TOTAL MOVIES', accessor: 'totalMovies' },
-    { header: 'DATE', accessor: 'date' },
+    {
+      header: 'CATEGORY NAME',
+      accessor: 'name',
+      render: (row) => (
+        <div className="category-name-cell">
+          <div className="category-name">{row.name}</div>
+          {row.description && (
+            <div className="category-desc">{row.description}</div>
+          )}
+        </div>
+      )
+    },
+    {
+      header: 'TOTAL SERIES',
+      render: (row) => (
+        <span className="total-count">{row.totalSeries || row.totalMovies || 0}</span>
+      )
+    },
+    {
+      header: 'DATE',
+      render: (row) => {
+        const date = row.createdAt ? new Date(row.createdAt) : new Date();
+        return date.toLocaleDateString('en-GB');
+      }
+    },
     {
       header: 'ACTIVE',
       render: (row) => (
         <Toggle
-          checked={row.active}
-          onChange={() => handleToggle(row.id, row.active)}
+          checked={row.isActive !== false}
+          onChange={() => handleToggle(row.id, row.isActive !== false)}
         />
       )
     },
@@ -175,15 +341,17 @@ const FilmCategory = () => {
       header: 'ACTION',
       render: (row) => (
         <div className="action-buttons">
-          <button 
+          <button
             className="action-btn edit-btn"
             onClick={() => handleEdit(row)}
+            title="Edit"
           >
             <FaEdit />
           </button>
-          <button 
+          <button
             className="action-btn delete-btn"
             onClick={() => handleDelete(row.id)}
+            title="Delete"
           >
             <FaTrash />
           </button>
@@ -194,40 +362,132 @@ const FilmCategory = () => {
 
   return (
     <div className="film-category-page">
+      {/* Page Header */}
       <div className="page-header">
         <h2 className="page-title">Film Category</h2>
         <button className="btn btn-primary" onClick={handleAdd}>
-          <FaPlus /> New
+          <FaPlus /> New Category
         </button>
       </div>
 
-      <Table columns={columns} data={categories} />
+      {/* Search Bar */}
+      <div className="search-section">
+        <div className="search-box">
+          <FaSearch className="search-icon" />
+          <input
+            type="text"
+            placeholder="Search categories..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="search-input"
+          />
+        </div>
+      </div>
 
+      {/* Table */}
+      {loading ? (
+        <SkeletonTable rows={5} columns={8} />
+      ) : (
+        <Table columns={columns} data={filteredCategories} />
+      )}
+
+      {/* Pagination */}
+      {!loading && totalPages > 1 && (
+        <div className="pagination">
+          <span>
+            Showing {currentPage} out of {totalPages} pages
+          </span>
+          <div className="pagination-controls">
+            <button
+              className="pagination-btn"
+              onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+              disabled={currentPage === 1}
+            >
+              &lt;
+            </button>
+            {[...Array(Math.min(5, totalPages))].map((_, idx) => {
+              let pageNum;
+              if (totalPages <= 5) {
+                pageNum = idx + 1;
+              } else if (currentPage <= 3) {
+                pageNum = idx + 1;
+              } else if (currentPage >= totalPages - 2) {
+                pageNum = totalPages - 4 + idx;
+              } else {
+                pageNum = currentPage - 2 + idx;
+              }
+              
+              return (
+                <button
+                  key={pageNum}
+                  className={`pagination-btn ${currentPage === pageNum ? 'active' : ''}`}
+                  onClick={() => setCurrentPage(pageNum)}
+                >
+                  {pageNum}
+                </button>
+              );
+            })}
+            <button
+              className="pagination-btn"
+              onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+              disabled={currentPage === totalPages}
+            >
+              &gt;
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Modal */}
       <Modal
         isOpen={isModalOpen}
-        onClose={() => setIsModalOpen(false)}
+        onClose={() => {
+          setIsModalOpen(false);
+          clearImage();
+        }}
         title={currentCategory ? 'Edit Film Category' : 'Add Film Category'}
+        size="medium"
       >
         <form onSubmit={handleSubmit} className="category-form">
+          {/* Image Upload */}
           <div className="form-group">
-            <label className="form-label">Image</label>
+            <label className="form-label">Category Image</label>
             <div className="file-input-container">
-              <input
-                type="file"
-                accept="image/*"
-                onChange={(e) => setFormData({ ...formData, image: e.target.files[0] })}
-                className="file-input"
-              />
-              {formData.image && (
-                <div className="preview-image">
-                  <img src={URL.createObjectURL(formData.image)} alt="Preview" />
+              {imagePreview ? (
+                <div className="preview-wrapper">
+                  <div className="preview-image">
+                    <img src={imagePreview} alt="Preview" />
+                    <button
+                      type="button"
+                      className="remove-image-btn"
+                      onClick={clearImage}
+                      title="Remove image"
+                    >
+                      <FaTimes />
+                    </button>
+                  </div>
                 </div>
+              ) : (
+                <label className="file-input-label">
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={handleImageSelect}
+                    className="file-input-hidden"
+                  />
+                  <div className="file-input-placeholder">
+                    <FaImage className="upload-icon" />
+                    <span>Click to upload image</span>
+                    <span className="file-hint">Max size: 5MB</span>
+                  </div>
+                </label>
               )}
             </div>
           </div>
 
+          {/* Name */}
           <div className="form-group">
-            <label className="form-label">Name</label>
+            <label className="form-label">Category Name *</label>
             <input
               type="text"
               value={formData.name}
@@ -238,29 +498,53 @@ const FilmCategory = () => {
             />
           </div>
 
+          {/* Description */}
+          <div className="form-group">
+            <label className="form-label">Description</label>
+            <textarea
+              value={formData.description}
+              onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+              className="input-field"
+              placeholder="Enter category description"
+              rows="3"
+            />
+          </div>
+
+          {/* Active Status */}
+          <div className="form-group">
+            <label className="form-checkbox">
+              <input
+                type="checkbox"
+                checked={formData.isActive}
+                onChange={(e) => setFormData({ ...formData, isActive: e.target.checked })}
+              />
+              <span>Active Category</span>
+            </label>
+          </div>
+
+          {/* Actions */}
           <div className="modal-actions">
-            <button 
-              type="button" 
+            <button
+              type="button"
               className="btn btn-outline"
-              onClick={() => setIsModalOpen(false)}
+              onClick={() => {
+                setIsModalOpen(false);
+                clearImage();
+              }}
+              disabled={uploading}
             >
-              Close
+              Cancel
             </button>
-            <button type="submit" className="btn btn-primary">
-              Submit
+            <button
+              type="submit"
+              className="btn btn-primary"
+              disabled={uploading}
+            >
+              {uploading ? 'Uploading...' : currentCategory ? 'Update' : 'Create'}
             </button>
           </div>
         </form>
       </Modal>
-
-      <div className="pagination">
-        <span>Showing 1 out of 1 pages</span>
-        <div className="pagination-controls">
-          <button className="pagination-btn">&lt;</button>
-          <button className="pagination-btn active">1</button>
-          <button className="pagination-btn">&gt;</button>
-        </div>
-      </div>
     </div>
   );
 };

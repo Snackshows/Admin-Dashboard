@@ -6,14 +6,15 @@ import {
   FaUserTie, 
   FaFilm, 
   FaList, 
-  FaTv, 
   FaVideo,
   FaCrown,
   FaBars,
   FaTimes,
   FaBell,
   FaUserCircle,
-  FaSignOutAlt
+  FaSignOutAlt,
+  FaCog,
+  FaLanguage
 } from 'react-icons/fa';
 import './Layout.css';
 
@@ -22,23 +23,15 @@ const Layout = ({ children }) => {
   const navigate = useNavigate();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
-  const menuItems = [
-    { path: '/dashboard', icon: FaHome, label: 'Dashboard' },
-    { path: '/users', icon: FaUsers, label: 'User' },
-    { path: '/employee', icon: FaUserTie, label: 'Employee' },
-    { path: '/film-category', icon: FaFilm, label: 'Film Category' },
-    { path: '/film-list', icon: FaList, label: 'Film List' },
-    { path: '/episode-list', icon: FaTv, label: 'Episode List' },
-    { path: '/content', icon: FaVideo, label: 'Content' },
-    { path: '/vip-plan', icon: FaCrown, label: 'VIP Plan' },
-  ];
-
   const handleLogout = () => {
-    // Clear any stored tokens or user data
     localStorage.removeItem('token');
     localStorage.removeItem('user');
-    // Redirect to login
     navigate('/login');
+  };
+
+  // ← ADD THIS FUNCTION
+  const handleProfileClick = () => {
+    navigate('/profile');
   };
 
   const toggleMobileMenu = () => {
@@ -63,7 +56,7 @@ const Layout = ({ children }) => {
         
         <div className="mobile-logo">
           <FaVideo className="logo-icon" />
-          <span className="logo-text">SnackShow</span>
+          <span className="logo-text">SnackShows</span>
         </div>
 
         <div className="mobile-header-actions">
@@ -71,7 +64,8 @@ const Layout = ({ children }) => {
             <FaBell />
             <span className="notification-badge">2</span>
           </button>
-          <button className="profile-btn">
+          {/* ← ADD onClick HERE TOO */}
+          <button className="profile-btn" onClick={handleProfileClick}>
             <FaUserCircle />
           </button>
         </div>
@@ -90,54 +84,111 @@ const Layout = ({ children }) => {
         <div className="sidebar-header">
           <div className="logo">
             <FaVideo className="logo-icon" />
-            <span className="logo-text">SnackShow</span>
+            <span className="logo-text">SnackShows</span>
           </div>
         </div>
 
         <nav className="sidebar-nav">
           <div className="nav-section">
             <h3 className="nav-section-title">MENU</h3>
-            {menuItems.slice(0, 2).map((item) => (
-              <Link
-                key={item.path}
-                to={item.path}
-                className={`nav-item ${location.pathname === item.path ? 'active' : ''}`}
-                onClick={closeMobileMenu}
-              >
-                <item.icon className="nav-icon" />
-                <span className="nav-label">{item.label}</span>
-              </Link>
-            ))}
+            <Link
+              to="/dashboard"
+              className={`nav-item ${location.pathname === '/dashboard' ? 'active' : ''}`}
+              onClick={closeMobileMenu}
+            >
+              <FaHome className="nav-icon" />
+              <span className="nav-label">Dashboard</span>
+            </Link>
+            <Link
+              to="/users"
+              className={`nav-item ${location.pathname === '/users' ? 'active' : ''}`}
+              onClick={closeMobileMenu}
+            >
+              <FaUsers className="nav-icon" />
+              <span className="nav-label">User</span>
+            </Link>
+            <Link
+              to="/employee"
+              className={`nav-item ${location.pathname === '/employee' ? 'active' : ''}`}
+              onClick={closeMobileMenu}
+            >
+              <FaUserTie className="nav-icon" />
+              <span className="nav-label">Employee</span>
+            </Link>
           </div>
 
           <div className="nav-section">
             <h3 className="nav-section-title">FILM MANAGEMENT</h3>
-            {menuItems.slice(2, 7).map((item) => (
-              <Link
-                key={item.path}
-                to={item.path}
-                className={`nav-item ${location.pathname === item.path ? 'active' : ''}`}
-                onClick={closeMobileMenu}
-              >
-                <item.icon className="nav-icon" />
-                <span className="nav-label">{item.label}</span>
-              </Link>
-            ))}
+            <Link
+              to="/film-category"
+              className={`nav-item ${location.pathname === '/film-category' ? 'active' : ''}`}
+              onClick={closeMobileMenu}
+            >
+              <FaFilm className="nav-icon" />
+              <span className="nav-label">WebSeries Category</span>
+            </Link>
+            <Link
+              to="/film-list"
+              className={`nav-item ${location.pathname === '/film-list' ? 'active' : ''}`}
+              onClick={closeMobileMenu}
+            >
+              <FaList className="nav-icon" />
+              <span className="nav-label">WebSeries List</span>
+            </Link>
+            {/* <Link
+              to="/episode-list"
+              className={`nav-item ${location.pathname === '/episode-list' ? 'active' : ''}`}
+              onClick={closeMobileMenu}
+            >
+              <FaTv className="nav-icon" />
+              <span className="nav-label">Episode List</span>
+            </Link> */}
+            <Link
+              to="/content"
+              className={`nav-item ${location.pathname === '/content' ? 'active' : ''}`}
+              onClick={closeMobileMenu}
+            >
+              <FaVideo className="nav-icon" />
+              <span className="nav-label">Content</span>
+            </Link>
+
+            
+          </div>
+
+          <div className="nav-section">
+            <h3 className="nav-section-title">Language</h3>
+            <Link
+              to="/language"
+              className={`nav-item ${location.pathname === '/language' ? 'active' : ''}`}
+              onClick={closeMobileMenu}
+            >
+              <FaLanguage className="nav-icon" />
+              <span className="nav-label">Language</span>
+            </Link>
           </div>
 
           <div className="nav-section">
             <h3 className="nav-section-title">PACKAGE</h3>
-            {menuItems.slice(7).map((item) => (
-              <Link
-                key={item.path}
-                to={item.path}
-                className={`nav-item ${location.pathname === item.path ? 'active' : ''}`}
-                onClick={closeMobileMenu}
-              >
-                <item.icon className="nav-icon" />
-                <span className="nav-label">{item.label}</span>
-              </Link>
-            ))}
+            <Link
+              to="/vip-plan"
+              className={`nav-item ${location.pathname === '/vip-plan' ? 'active' : ''}`}
+              onClick={closeMobileMenu}
+            >
+              <FaCrown className="nav-icon" />
+              <span className="nav-label">VIP Plan</span>
+            </Link>
+          </div>
+
+          <div className="nav-section">
+            <h3 className="nav-section-title">SYSTEM</h3>
+            <Link
+              to="/settings"
+              className={`nav-item ${location.pathname === '/settings' ? 'active' : ''}`}
+              onClick={closeMobileMenu}
+            >
+              <FaCog className="nav-icon" />
+              <span className="nav-label">Settings</span>
+            </Link>
           </div>
         </nav>
 
@@ -161,7 +212,12 @@ const Layout = ({ children }) => {
               <FaBell />
               <span className="notification-badge">2</span>
             </button>
-            <div className="user-profile">
+            {/* ← ADD onClick HERE */}
+            <div 
+              className="user-profile"
+              onClick={handleProfileClick}
+              style={{ cursor: 'pointer' }}
+            >
               <FaUserCircle className="user-avatar" />
               <span className="user-name">Admin User</span>
             </div>

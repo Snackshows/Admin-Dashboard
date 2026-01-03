@@ -6,6 +6,7 @@ import { Loading } from './components/common/Loading';
 import Layout from './components/layout/Layout';
 import './assets/styles/index.css';
 
+
 // Lazy load all pages for better performance
 const Login = lazy(() => import('./pages/Login'));
 const Dashboard = lazy(() => import('./pages/Dashboard'));
@@ -19,6 +20,10 @@ const VIPPlan = lazy(() => import('./pages/VIPPlan'));
 const OrderHistory = lazy(() => import('./pages/OrderHistory'));
 const Settings = lazy(() => import('./pages/Settings'));
 const Profile = lazy(() => import('./pages/Profile'));
+const UserProfile = lazy(() => import('./pages/UserProfile'));
+const EmployeeProfile = lazy(() => import('./pages/EmployeeProfile'));
+const Language = lazy(() => import('./pages/Language'));
+
 
 // Protected Route Component
 const ProtectedRoute = ({ children }) => {
@@ -30,9 +35,6 @@ const ProtectedRoute = ({ children }) => {
 
   return isAuthenticated ? children : <Navigate to="/login" replace />;
 };
-
-// Placeholder for UserProfile (individual user detail page)
-const UserProfile = () => <div className="page-container"><h2>User Profile</h2><p>Coming soon...</p></div>;
 
 const Logout = () => {
   const { logout } = useAuth();
@@ -74,6 +76,8 @@ function AppRoutes() {
                       <Route path="/users" element={<Users />} />
                       <Route path="/user-profile/:id" element={<UserProfile />} />
                       <Route path="/employee" element={<Employee />} />
+                      <Route path="/employee-profile/:id" element={<EmployeeProfile />} /> {/* ← ADD THIS LINE */}
+                      <Route path="/language" element={<Language />} />
                       <Route path="/film-category" element={<FilmCategory />} />
                       <Route path="/film-list" element={<FilmList />} />
                       <Route path="/episode-list" element={<EpisodeList />} />

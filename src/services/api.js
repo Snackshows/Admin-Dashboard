@@ -1,8 +1,4 @@
-/**
- * StoryBox Admin API Service
- * Production-ready API integration with all endpoints
- * Base URL: https://king-prawn-app-ewizm.ondigitalocean.app/api/v1
- */
+
 
 import { apiCall, apiCallFormData } from './apiConfig';
 
@@ -25,6 +21,7 @@ export const authAPI = {
 };
 
 // ==================== PROFILE API ====================
+
 export const profileAPI = {
   // GET /dashboard/profile - Get Profile Data
   getProfile: () => apiCall('/dashboard/profile', 'GET'),
@@ -53,15 +50,19 @@ export const employeeAPI = {
     return apiCall(`/dashboard/employee${queryString}`, 'GET');
   },
   
+  getEmployeeDetails: (employeeId) => apiCall(`/dashboard/employee/${employeeId}`, 'GET'),
+
   // PUT /dashboard/employee - Edit Employee Details
   updateEmployee: (data) => apiCall('/dashboard/employee', 'PUT', data),
   
   // DELETE /dashboard/employee - Remove Employee
-  deleteEmployee: (employeeId) => apiCall(`/dashboard/employee?id=${employeeId}`, 'DELETE'),
+  deleteEmployee: (employeeId) => apiCall(`/dashboard/employee/${employeeId}`, 'DELETE'),
   
   // PATCH /dashboard/employee/permission - Change Permission
   changePermission: (data) => apiCall('/dashboard/employee/permission', 'PATCH', data),
 };
+
+
 
 // ==================== USERS API ====================
 export const usersAPI = {
@@ -76,10 +77,50 @@ export const usersAPI = {
   
   // PATCH /dashboard/users/permissions - Change User Permission
   changeUserPermission: (data) => apiCall('/dashboard/users/permissions', 'PATCH', data),
+  
 };
 
 // ==================== CATEGORY API ====================
+// export const categoryAPI = {
+//   // POST /dashboard/category/create - Create New Category
+//   createCategory: (data) => apiCall('/dashboard/category/create', 'POST', data),
+  
+//   // GET /dashboard/category - Get All Categories
+//   getAllCategories: (params) => {
+//     const queryString = params ? `?${new URLSearchParams(params)}` : '';
+//     return apiCall(`/dashboard/category${queryString}`, 'GET');
+//   },
+  
+//   // GET /dashboard/category/:id - Get Category Details
+//   getCategoryDetails: (categoryId) => apiCall(`/dashboard/category/${categoryId}`, 'GET'),
+  
+//   // PUT /dashboard/category - Update Category
+//   updateCategory: (data) => apiCall('/dashboard/category', 'PUT', data),
+  
+//   // DELETE /dashboard/category/:id - Delete Category
+//   deleteCategory: (categoryId) => apiCall(`/dashboard/category/${categoryId}`, 'DELETE'),
+// };
 export const categoryAPI = {
+  // POST /dashboard/category/thumbnail/presign - Get Presigned URL for Image Upload
+  getThumbnailUploadUrl: (data) => apiCall('/dashboard/category/thumbnail/presign', 'POST', data),
+  
+  // Upload image to S3 using presigned URL
+  uploadToS3: async (presignedUrl, file) => {
+    try {
+      const response = await fetch(presignedUrl, {
+        method: 'PUT',
+        body: file,
+        headers: {
+          'Content-Type': file.type,
+        },
+      });
+      return response.ok;
+    } catch (error) {
+      console.error('Error uploading to S3:', error);
+      throw error;
+    }
+  },
+  
   // POST /dashboard/category/create - Create New Category
   createCategory: (data) => apiCall('/dashboard/category/create', 'POST', data),
   
@@ -95,28 +136,42 @@ export const categoryAPI = {
   // PUT /dashboard/category - Update Category
   updateCategory: (data) => apiCall('/dashboard/category', 'PUT', data),
   
+  // PATCH /dashboard/category/isActive - Change isActive Status
+  changeIsActive: (data) => apiCall('/dashboard/category/isActive', 'PATCH', data),
+  
   // DELETE /dashboard/category/:id - Delete Category
   deleteCategory: (categoryId) => apiCall(`/dashboard/category/${categoryId}`, 'DELETE'),
 };
 
 // ==================== VIDEO SERIES API ====================
 export const seriesAPI = {
-  // POST /dashboard/videoSeries - Create New Series
-  createSeries: (data) => apiCall('/dashboard/videoSeries', 'POST', data),
+  // Get Presigned URLs for Image Upload
+  getThumbnailUploadUrl: (data) => apiCall('/dashboard/videoSeries/thumbnail/presign', 'POST', data),
+  getBannerUploadUrl: (data) => apiCall('/dashboard/videoSeries/banner/presign', 'POST', data),
   
-  // GET /dashboard/videoSeries - Get All Series
+  // Upload to S3
+  uploadToS3: async (presignedUrl, file) => {
+    try {
+      const response = await fetch(presignedUrl, {
+        method: 'PUT',
+        body: file,
+        headers: { 'Content-Type': file.type },
+      });
+      return response.ok;
+    } catch (error) {
+      console.error('Error uploading to S3:', error);
+      throw error;
+    }
+  },
+  
+  // CRUD Operations
+  createSeries: (data) => apiCall('/dashboard/videoSeries', 'POST', data),
   getAllSeries: (params) => {
     const queryString = params ? `?${new URLSearchParams(params)}` : '';
     return apiCall(`/dashboard/videoSeries${queryString}`, 'GET');
   },
-  
-  // GET /dashboard/videoSeries/:id - Get Series Details
   getSeriesDetails: (seriesId) => apiCall(`/dashboard/videoSeries/${seriesId}`, 'GET'),
-  
-  // PUT /dashboard/videoSeries - Update Series
   updateSeries: (data) => apiCall('/dashboard/videoSeries', 'PUT', data),
-  
-  // DELETE /dashboard/videoSeries/:id - Delete Series
   deleteSeries: (seriesId) => apiCall(`/dashboard/videoSeries/${seriesId}`, 'DELETE'),
 };
 
@@ -153,6 +208,28 @@ export const uploadAPI = {
   uploadVideo: (formData) => apiCallFormData('/upload/video', 'POST', formData),
 };
 
+// ==================== LANGUAGE API ====================
+export const languageAPI = {
+  // GET /dashboard/language - Get All Languages
+  getAllLanguages: (params) => {
+    const queryString = params ? `?${new URLSearchParams(params)}` : '';
+    return apiCall(`/dashboard/language${queryString}`, 'GET');
+  },
+  
+  // POST /dashboard/language - Create New Language
+  createLanguage: (data) => apiCall('/dashboard/language', 'POST', data),
+  
+  // PUT /dashboard/language - Update Language
+  updateLanguage: (data) => apiCall('/dashboard/language', 'PUT', data),
+  
+  // DELETE /dashboard/language/:id - Delete Language
+  deleteLanguage: (languageId) => apiCall(`/dashboard/language/${languageId}`, 'DELETE'),
+  
+  // PATCH /dashboard/language/isActive - Set IsActive
+  setIsActive: (data) => apiCall('/dashboard/language/isActive', 'PATCH', data),
+};
+
+
 // Export all APIs as a single object
 const API = {
   dashboard: dashboardAPI,
@@ -164,6 +241,7 @@ const API = {
   series: seriesAPI,
   episodes: episodesAPI,
   upload: uploadAPI,
+  language: languageAPI, 
 };
 
 export default API;
