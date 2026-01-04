@@ -230,6 +230,17 @@ export const languageAPI = {
 };
 
 
+export const episodeAPI = {
+  getAllEpisodes: () => apiCall('/dashboard/episode', 'GET'),
+  getEpisodeDetails: (episodeId) => apiCall(`/dashboard/episode/${episodeId}`, 'GET'),
+  createEpisode: (data) => apiCall('/dashboard/episode', 'POST', data),
+  updateEpisode: (episodeId, data) => apiCall(`/dashboard/videoSeries/${episodeId}`, 'PUT', data),
+  deleteEpisode: (episodeId) => apiCall(`/dashboard/episode/${episodeId}`, 'DELETE'),
+  getThumbnailPresignedUrl: (data) => apiCall('/dashboard/videoSeries/thumbnail/presign', 'POST', data),
+  getVideoPresignedUrl: (data) => apiCall('/dashboard/episode/video/presign', 'POST', data),
+};
+
+
 // Export all APIs as a single object
 const API = {
   dashboard: dashboardAPI,
@@ -242,6 +253,7 @@ const API = {
   episodes: episodesAPI,
   upload: uploadAPI,
   language: languageAPI, 
+  episode: episodeAPI, 
 };
 
 export default API;

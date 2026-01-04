@@ -1,140 +1,128 @@
 import React, { useState, useEffect } from 'react';
-import { FaEdit, FaTrash, FaEye, FaSearch, FaFire, FaHeart } from 'react-icons/fa';
+import { FaEdit, FaTrash, FaEye, FaSearch, FaLock, FaUnlock, FaPlay } from 'react-icons/fa';
 import Modal from '../components/common/Modal';
 import Table from '../components/common/Table';
-import Toggle from '../components/common/Toggle';
 import { useToast } from '../components/common/Toast';
 import { useConfirm } from '../components/common/ConfirmDialog';
 import { SkeletonTable } from '../components/common/Loading';
+import { episodeAPI } from '../services/api';
 import './Content.css';
 
-const Content = () => {
+const Episode = () => {
   const toast = useToast();
   const confirm = useConfirm();
   
-  const [videos, setVideos] = useState([
-    {
-      id: 1,
-      title: 'Epic Dance Challenge',
-      creator: 'Sarah Johnson',
-      duration: '0:45',
-      views: 1250000,
-      likes: 89000,
-      category: 'Dance',
-      uploadDate: '2024-12-20',
-      trending: true,
-      active: true
-    },
-    {
-      id: 2,
-      title: 'Cooking Hack: Perfect Pasta',
-      creator: 'Chef Mike',
-      duration: '1:20',
-      views: 567000,
-      likes: 45000,
-      category: 'Food',
-      uploadDate: '2024-12-19',
-      trending: false,
-      active: true
-    },
-    {
-      id: 3,
-      title: 'Amazing Magic Trick Revealed',
-      creator: 'Magic Master',
-      duration: '0:58',
-      views: 890000,
-      likes: 67000,
-      category: 'Entertainment',
-      uploadDate: '2024-12-18',
-      trending: true,
-      active: true
-    },
-    {
-      id: 4,
-      title: 'Funny Cat Compilation',
-      creator: 'Pet Lover',
-      duration: '1:15',
-      views: 2100000,
-      likes: 156000,
-      category: 'Pets',
-      uploadDate: '2024-12-17',
-      trending: true,
-      active: true
-    },
-    {
-      id: 5,
-      title: 'Workout Routine for Beginners',
-      creator: 'Fitness Pro',
-      duration: '2:30',
-      views: 345000,
-      likes: 28000,
-      category: 'Fitness',
-      uploadDate: '2024-12-16',
-      trending: false,
-      active: true
-    }
-  ]);
-  
+  const [episodes, setEpisodes] = useState([]);
+  const [series, setSeries] = useState([]);
   const [searchQuery, setSearchQuery] = useState('');
-  const [filterCategory, setFilterCategory] = useState('all');
+  const [filterSeries, setFilterSeries] = useState('all');
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [currentVideo, setCurrentVideo] = useState(null);
+  const [currentEpisode, setCurrentEpisode] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  
   const [formData, setFormData] = useState({
+    seriesId: '',
     title: '',
-    creator: '',
-    category: '',
     description: '',
-    video: null,
-    thumbnail: null
+    episodeNumber: 1,
+    requiredPlan: 'FREE',
+    duration: 0,
+    isLocked: false,
+    releaseDate: new Date().toISOString().split('T')[0],
+    thumbnailFile: null,
+    videoFile: null
+  });
+
+  const [uploadProgress, setUploadProgress] = useState({
+    thumbnail: 0,
+    video: 0
   });
 
   useEffect(() => {
-    fetchVideos();
+    fetchEpisodes();
+    fetchSeries();
   }, []);
 
-  const fetchVideos = async () => {
+  // Fetch all episodes
+  const fetchEpisodes = async () => {
     try {
       setLoading(true);
-      await new Promise(resolve => setTimeout(resolve, 800));
-      setLoading(false);
+      const response = await episodeAPI.getAllEpisodes();
+      
+      if (response.success && response.data) {
+        setEpisodes(response.data);
+      }
     } catch (error) {
-      console.error('Error fetching videos:', error);
-      toast.error('Failed to load videos');
+      console.error('Error fetching episodes:', error);
+      toast.error('Failed to load episodes');
+    } finally {
       setLoading(false);
     }
   };
 
+  // Fetch series list for dropdown
+  const fetchSeries = async () => {
+    try {
+      // Replace with your series API
+      const response = await fetch('/api/dashboard/videoSeries', {
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        }
+      });
+      const data = await response.json();
+      
+      if (data.success) {
+        setSeries(data.data || []);
+      }
+    } catch (error) {
+      console.error('Error fetching series:', error);
+    }
+  };
+
+  // Handle Add New Episode
   const handleAdd = () => {
-    setCurrentVideo(null);
+    setCurrentEpisode(null);
     setFormData({
+      seriesId: '',
       title: '',
-      creator: '',
-      category: '',
       description: '',
-      video: null,
-      thumbnail: null
+      episodeNumber: 1,
+      requiredPlan: 'FREE',
+      duration: 0,
+      isLocked: false,
+      releaseDate: new Date().toISOString().split('T')[0],
+      thumbnailFile: null,
+      videoFile: null
     });
+    setUploadProgress({ thumbnail: 0, video: 0 });
     setIsModalOpen(true);
   };
 
-  const handleEdit = (video) => {
-    setCurrentVideo(video);
+  // Handle Edit Episode
+  const handleEdit = (episode) => {
+    setCurrentEpisode(episode);
     setFormData({
-      title: video.title,
-      creator: video.creator,
-      category: video.category,
-      description: video.description || '',
-      video: null,
-      thumbnail: null
+      seriesId: episode.seriesId || '',
+      title: episode.title || '',
+      description: episode.description || '',
+      episodeNumber: episode.episodeNumber || 1,
+      requiredPlan: episode.requiredPlan || 'FREE',
+      duration: episode.duration || 0,
+      isLocked: episode.isLocked || false,
+      releaseDate: episode.releaseDate?.split('T')[0] || new Date().toISOString().split('T')[0],
+      thumbnailFile: null,
+      videoFile: null
     });
+    setUploadProgress({ thumbnail: 0, video: 0 });
     setIsModalOpen(true);
   };
 
-  const handleDelete = async (videoId) => {
+  // Handle Delete Episode
+  const handleDelete = async (episodeId) => {
     const confirmed = await confirm({
-      title: 'Delete Video',
-      message: 'Are you sure you want to delete this video? This action cannot be undone.',
+      title: 'Delete Episode',
+      message: 'Are you sure you want to delete this episode? This action cannot be undone.',
       confirmText: 'Delete',
       type: 'danger'
     });
@@ -142,143 +130,259 @@ const Content = () => {
     if (!confirmed) return;
 
     try {
-      setVideos(videos.filter(v => v.id !== videoId));
-      toast.success('Video deleted successfully');
+      const response = await episodeAPI.deleteEpisode(episodeId);
+      
+      if (response.success) {
+        setEpisodes(episodes.filter(e => e.id !== episodeId));
+        toast.success('Episode deleted successfully');
+      } else {
+        toast.error(response.message || 'Failed to delete episode');
+      }
     } catch (error) {
-      console.error('Error deleting video:', error);
-      toast.error('Failed to delete video');
+      console.error('Error deleting episode:', error);
+      toast.error('Failed to delete episode');
     }
   };
 
+  // Upload Thumbnail via Presigned URL
+  const uploadThumbnail = async (file) => {
+    try {
+      setUploadProgress(prev => ({ ...prev, thumbnail: 10 }));
+      
+      // Step 1: Get presigned URL
+      const presignResponse = await episodeAPI.getThumbnailPresignedUrl({
+        fileName: file.name,
+        contentType: file.type
+      });
+
+      if (!presignResponse.success || !presignResponse.data) {
+        throw new Error('Failed to get thumbnail upload URL');
+      }
+
+      const { uploadUrl, publicFileUrl, key } = presignResponse.data;
+      setUploadProgress(prev => ({ ...prev, thumbnail: 30 }));
+
+      // Step 2: Upload to S3
+      const uploadResponse = await fetch(uploadUrl, {
+        method: 'PUT',
+        body: file,
+        headers: {
+          'Content-Type': file.type
+        }
+      });
+
+      if (!uploadResponse.ok) {
+        throw new Error('Failed to upload thumbnail to S3');
+      }
+
+      setUploadProgress(prev => ({ ...prev, thumbnail: 100 }));
+      
+      return { publicFileUrl, key };
+    } catch (error) {
+      console.error('Error uploading thumbnail:', error);
+      throw error;
+    }
+  };
+
+  // Upload Video via Presigned URL
+  const uploadVideo = async (file, episodeId) => {
+    try {
+      setUploadProgress(prev => ({ ...prev, video: 10 }));
+      
+      // Step 1: Get presigned URL
+      const presignResponse = await episodeAPI.getVideoPresignedUrl({
+        episodeId: episodeId,
+        fileName: file.name,
+        contentType: file.type
+      });
+
+      if (!presignResponse.success || !presignResponse.data) {
+        throw new Error('Failed to get video upload URL');
+      }
+
+      const { uploadUrl, publicFileUrl, key } = presignResponse.data;
+      setUploadProgress(prev => ({ ...prev, video: 30 }));
+
+      // Step 2: Upload to S3
+      const uploadResponse = await fetch(uploadUrl, {
+        method: 'PUT',
+        body: file,
+        headers: {
+          'Content-Type': file.type
+        }
+      });
+
+      if (!uploadResponse.ok) {
+        throw new Error('Failed to upload video to S3');
+      }
+
+      setUploadProgress(prev => ({ ...prev, video: 100 }));
+      
+      return { publicFileUrl, key };
+    } catch (error) {
+      console.error('Error uploading video:', error);
+      throw error;
+    }
+  };
+
+  // Handle Form Submit
   const handleSubmit = async (e) => {
     e.preventDefault();
     
     try {
-      if (currentVideo) {
-        setVideos(videos.map(v => 
-          v.id === currentVideo.id ? { ...v, ...formData } : v
-        ));
-        toast.success('Video updated successfully');
-      } else {
-        const newVideo = {
-          id: videos.length + 1,
-          ...formData,
-          duration: '1:00',
-          views: 0,
-          likes: 0,
-          uploadDate: new Date().toISOString().split('T')[0],
-          trending: false,
-          active: true
-        };
-        setVideos([...videos, newVideo]);
-        toast.success('Video created successfully');
-      }
+      setUploading(true);
       
+      let thumbnailUrl = currentEpisode?.thumbnail || '';
+      let videoUrl = currentEpisode?.videoUrl || '';
+
+      // Upload thumbnail if new file selected
+      if (formData.thumbnailFile) {
+        toast.info('Uploading thumbnail...');
+        const thumbnailResult = await uploadThumbnail(formData.thumbnailFile);
+        thumbnailUrl = thumbnailResult.publicFileUrl;
+      }
+
+      // Create/Update Episode Metadata
+      const episodeData = {
+        seriesId: formData.seriesId,
+        title: formData.title,
+        description: formData.description,
+        episodeNumber: parseInt(formData.episodeNumber),
+        requiredPlan: formData.requiredPlan,
+        thumbnail: thumbnailUrl,
+        duration: parseInt(formData.duration),
+        isLocked: formData.isLocked,
+        releaseDate: formData.releaseDate
+      };
+
+      let episodeId = currentEpisode?.id;
+
+      if (currentEpisode) {
+        // Update existing episode
+        const updateResponse = await episodeAPI.updateEpisode(episodeId, episodeData);
+        
+        if (!updateResponse.success) {
+          throw new Error(updateResponse.message || 'Failed to update episode');
+        }
+      } else {
+        // Create new episode
+        const createResponse = await episodeAPI.createEpisode(episodeData);
+        
+        if (!createResponse.success || !createResponse.data) {
+          throw new Error(createResponse.message || 'Failed to create episode');
+        }
+        
+        episodeId = createResponse.data.id;
+      }
+
+      // Upload video if new file selected
+      if (formData.videoFile && episodeId) {
+        toast.info('Uploading video...');
+        const videoResult = await uploadVideo(formData.videoFile, episodeId);
+        videoUrl = videoResult.publicFileUrl;
+        
+        // Update episode with video URL
+        await episodeAPI.updateEpisode(episodeId, {
+          ...episodeData,
+          videoUrl: videoUrl
+        });
+      }
+
+      toast.success(currentEpisode ? 'Episode updated successfully' : 'Episode created successfully');
       setIsModalOpen(false);
+      fetchEpisodes(); // Refresh list
+      
     } catch (error) {
-      console.error('Error saving video:', error);
-      toast.error('Failed to save video');
+      console.error('Error saving episode:', error);
+      toast.error(error.message || 'Failed to save episode');
+    } finally {
+      setUploading(false);
+      setUploadProgress({ thumbnail: 0, video: 0 });
     }
   };
 
-  const handleToggleTrending = async (videoId, currentStatus) => {
+  // Toggle Lock Status
+  const handleToggleLock = async (episodeId, currentStatus) => {
     try {
-      setVideos(videos.map(v => 
-        v.id === videoId ? { ...v, trending: !currentStatus } : v
-      ));
-      toast.success(currentStatus ? 'Removed from trending' : 'Added to trending');
+      const episode = episodes.find(e => e.id === episodeId);
+      
+      const response = await episodeAPI.updateEpisode(episodeId, {
+        ...episode,
+        isLocked: !currentStatus
+      });
+      
+      if (response.success) {
+        setEpisodes(episodes.map(e => 
+          e.id === episodeId ? { ...e, isLocked: !currentStatus } : e
+        ));
+        toast.success(currentStatus ? 'Episode unlocked' : 'Episode locked');
+      }
     } catch (error) {
-      console.error('Error toggling trending:', error);
-      toast.error('Failed to update trending status');
+      console.error('Error toggling lock:', error);
+      toast.error('Failed to update lock status');
     }
   };
 
-  const handleToggleActive = async (videoId, currentStatus) => {
-    try {
-      setVideos(videos.map(v => 
-        v.id === videoId ? { ...v, active: !currentStatus } : v
-      ));
-      toast.success(currentStatus ? 'Video deactivated' : 'Video activated');
-    } catch (error) {
-      console.error('Error toggling active:', error);
-      toast.error('Failed to update active status');
-    }
-  };
-
-  const categories = [...new Set(videos.map(v => v.category))];
-
+  // Table Columns
   const columns = [
     {
-      header: 'NO',
-      accessor: 'id',
-      width: '60px'
+      header: 'EP #',
+      accessor: 'episodeNumber',
+      width: '70px',
+      render: (row) => (
+        <div className="episode-number">#{row.episodeNumber}</div>
+      )
     },
     {
-      header: 'VIDEO',
+      header: 'EPISODE',
       render: (row) => (
-        <div className="video-title-cell">
-          <div className="video-thumbnail-small">
-            <div className="play-overlay">▶</div>
-            <div className="duration-badge">{row.duration}</div>
+        <div className="episode-title-cell">
+          <div className="episode-thumbnail-small">
+            {row.thumbnail ? (
+              <img src={row.thumbnail} alt={row.title} />
+            ) : (
+              <div className="thumbnail-placeholder">
+                <FaPlay />
+              </div>
+            )}
+            <div className="duration-badge">{formatDuration(row.duration)}</div>
           </div>
           <div>
-            <div className="video-name">{row.title}</div>
-            <div className="video-meta">{row.creator}</div>
+            <div className="episode-name">{row.title}</div>
+            <div className="episode-meta">{row.seriesName || 'Unknown Series'}</div>
           </div>
         </div>
       )
     },
     {
-      header: 'CATEGORY',
-      accessor: 'category',
+      header: 'PLAN',
+      accessor: 'requiredPlan',
       render: (row) => (
-        <span className="category-badge">{row.category}</span>
+        <span className={`plan-badge ${row.requiredPlan?.toLowerCase()}`}>
+          {row.requiredPlan || 'FREE'}
+        </span>
       )
     },
     {
-      header: 'VIEWS',
-      accessor: 'views',
-      render: (row) => (
-        <div className="stat-cell">
-          <FaEye className="stat-icon" />
-          <span>{(row.views / 1000).toFixed(0)}K</span>
-        </div>
-      )
+      header: 'DURATION',
+      accessor: 'duration',
+      render: (row) => formatDuration(row.duration)
     },
     {
-      header: 'LIKES',
-      accessor: 'likes',
-      render: (row) => (
-        <div className="stat-cell">
-          <FaHeart className="stat-icon heart" />
-          <span>{(row.likes / 1000).toFixed(0)}K</span>
-        </div>
-      )
+      header: 'RELEASE DATE',
+      accessor: 'releaseDate',
+      render: (row) => new Date(row.releaseDate).toLocaleDateString()
     },
     {
-      header: 'UPLOAD DATE',
-      accessor: 'uploadDate',
-      render: (row) => new Date(row.uploadDate).toLocaleDateString()
-    },
-    {
-      header: 'TRENDING',
+      header: 'LOCKED',
       render: (row) => (
         <button
-          className={`trending-btn ${row.trending ? 'is-trending' : ''}`}
-          onClick={() => handleToggleTrending(row.id, row.trending)}
-          title={row.trending ? 'Remove from trending' : 'Add to trending'}
+          className={`lock-btn ${row.isLocked ? 'locked' : 'unlocked'}`}
+          onClick={() => handleToggleLock(row.id, row.isLocked)}
+          title={row.isLocked ? 'Locked' : 'Unlocked'}
         >
-          <FaFire />
+          {row.isLocked ? <FaLock /> : <FaUnlock />}
         </button>
-      )
-    },
-    {
-      header: 'ACTIVE',
-      render: (row) => (
-        <Toggle
-          checked={row.active}
-          onChange={() => handleToggleActive(row.id, row.active)}
-        />
       )
     },
     {
@@ -288,7 +392,8 @@ const Content = () => {
           <button 
             className="action-btn view-btn" 
             title="View"
-            onClick={() => toast.info('Video preview coming soon!')}
+            onClick={() => window.open(row.videoUrl, '_blank')}
+            disabled={!row.videoUrl}
           >
             <FaEye />
           </button>
@@ -311,53 +416,64 @@ const Content = () => {
     }
   ];
 
-  const filteredVideos = videos.filter(video => {
-    const matchesSearch = video.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                         video.creator.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchesCategory = filterCategory === 'all' || video.category === filterCategory;
-    return matchesSearch && matchesCategory;
+  // Helper function to format duration (seconds to MM:SS)
+  const formatDuration = (seconds) => {
+    if (!seconds) return '0:00';
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins}:${secs.toString().padStart(2, '0')}`;
+  };
+
+  // Filter episodes
+  const filteredEpisodes = episodes.filter(episode => {
+    const matchesSearch = episode.title?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                         episode.description?.toLowerCase().includes(searchQuery.toLowerCase());
+    const matchesSeries = filterSeries === 'all' || episode.seriesId === filterSeries;
+    return matchesSearch && matchesSeries;
   });
 
   return (
-    <div className="content-page">
+    <div className="episode-page">
       <div className="page-header">
-        <h2 className="page-title">Short Videos / Content</h2>
+        <h2 className="page-title">Episodes Management</h2>
         <button className="btn btn-primary" onClick={handleAdd}>
-          + Add New Video
+          + Add New Episode
         </button>
       </div>
 
+      {/* Stats Overview */}
       <div className="stats-overview">
         <div className="stat-card-mini">
-          <div className="stat-value">{videos.length}</div>
-          <div className="stat-label">Total Videos</div>
+          <div className="stat-value">{episodes.length}</div>
+          <div className="stat-label">Total Episodes</div>
         </div>
         <div className="stat-card-mini">
           <div className="stat-value">
-            {videos.filter(v => v.trending).length}
+            {episodes.filter(e => e.isLocked).length}
           </div>
-          <div className="stat-label">Trending</div>
+          <div className="stat-label">Locked</div>
         </div>
         <div className="stat-card-mini">
           <div className="stat-value">
-            {(videos.reduce((sum, v) => sum + v.views, 0) / 1000000).toFixed(1)}M
+            {episodes.filter(e => !e.isLocked).length}
           </div>
-          <div className="stat-label">Total Views</div>
+          <div className="stat-label">Unlocked</div>
         </div>
         <div className="stat-card-mini">
           <div className="stat-value">
-            {(videos.reduce((sum, v) => sum + v.likes, 0) / 1000).toFixed(0)}K
+            {series.length}
           </div>
-          <div className="stat-label">Total Likes</div>
+          <div className="stat-label">Series</div>
         </div>
       </div>
 
+      {/* Filters */}
       <div className="filters-section">
         <div className="search-box">
           <FaSearch className="search-icon" />
           <input
             type="text"
-            placeholder="Search videos..."
+            placeholder="Search episodes..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             className="search-input"
@@ -366,122 +482,219 @@ const Content = () => {
 
         <div className="filter-buttons">
           <button 
-            className={`filter-btn ${filterCategory === 'all' ? 'active' : ''}`}
-            onClick={() => setFilterCategory('all')}
+            className={`filter-btn ${filterSeries === 'all' ? 'active' : ''}`}
+            onClick={() => setFilterSeries('all')}
           >
-            All ({videos.length})
+            All Series ({episodes.length})
           </button>
-          {categories.map(category => (
+          {series.map(s => (
             <button 
-              key={category}
-              className={`filter-btn ${filterCategory === category ? 'active' : ''}`}
-              onClick={() => setFilterCategory(category)}
+              key={s.id}
+              className={`filter-btn ${filterSeries === s.id ? 'active' : ''}`}
+              onClick={() => setFilterSeries(s.id)}
             >
-              {category} ({videos.filter(v => v.category === category).length})
+              {s.name} ({episodes.filter(e => e.seriesId === s.id).length})
             </button>
           ))}
         </div>
       </div>
 
+      {/* Table */}
       {loading ? (
-        <SkeletonTable rows={5} columns={9} />
+        <SkeletonTable rows={5} columns={7} />
       ) : (
-        <Table columns={columns} data={filteredVideos} />
+        <Table columns={columns} data={filteredEpisodes} />
       )}
 
+      {/* Add/Edit Modal */}
       <Modal
         isOpen={isModalOpen}
-        onClose={() => setIsModalOpen(false)}
-        title={currentVideo ? 'Edit Video' : 'Add New Video'}
+        onClose={() => !uploading && setIsModalOpen(false)}
+        title={currentEpisode ? 'Edit Episode' : 'Add New Episode'}
       >
-        <form onSubmit={handleSubmit} className="video-form">
+        <form onSubmit={handleSubmit} className="episode-form">
+          {/* Series Selection */}
           <div className="form-group">
-            <label className="form-label">Video Title *</label>
+            <label className="form-label">Series *</label>
+            <select
+              className="input-field"
+              value={formData.seriesId}
+              onChange={(e) => setFormData({ ...formData, seriesId: e.target.value })}
+              required
+              disabled={uploading}
+            >
+              <option value="">Select Series</option>
+              {series.map(s => (
+                <option key={s.id} value={s.id}>{s.name}</option>
+              ))}
+            </select>
+          </div>
+
+          {/* Title */}
+          <div className="form-group">
+            <label className="form-label">Episode Title *</label>
             <input
               type="text"
               className="input-field"
-              placeholder="Enter video title"
+              placeholder="Enter episode title"
               value={formData.title}
               onChange={(e) => setFormData({ ...formData, title: e.target.value })}
               required
+              disabled={uploading}
             />
           </div>
 
-          <div className="form-row">
-            <div className="form-group">
-              <label className="form-label">Creator Name *</label>
-              <input
-                type="text"
-                className="input-field"
-                placeholder="Creator/Channel name"
-                value={formData.creator}
-                onChange={(e) => setFormData({ ...formData, creator: e.target.value })}
-                required
-              />
-            </div>
-
-            <div className="form-group">
-              <label className="form-label">Category *</label>
-              <select
-                className="input-field"
-                value={formData.category}
-                onChange={(e) => setFormData({ ...formData, category: e.target.value })}
-                required
-              >
-                <option value="">Select category</option>
-                <option value="Dance">Dance</option>
-                <option value="Food">Food</option>
-                <option value="Entertainment">Entertainment</option>
-                <option value="Pets">Pets</option>
-                <option value="Fitness">Fitness</option>
-                <option value="Comedy">Comedy</option>
-                <option value="Education">Education</option>
-                <option value="Music">Music</option>
-                <option value="Travel">Travel</option>
-                <option value="Gaming">Gaming</option>
-              </select>
-            </div>
-          </div>
-
+          {/* Description */}
           <div className="form-group">
             <label className="form-label">Description</label>
             <textarea
               className="input-field"
               rows="4"
-              placeholder="Video description..."
+              placeholder="Episode description..."
               value={formData.description}
               onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+              disabled={uploading}
             />
           </div>
 
-          <div className="form-group">
-            <label className="form-label">Video File *</label>
-            <input
-              type="file"
-              className="file-input"
-              accept="video/*"
-              onChange={(e) => setFormData({ ...formData, video: e.target.files[0] })}
-            />
-            <small className="form-hint">Max file size: 100MB. Recommended: MP4, max 3 minutes</small>
+          {/* Episode Number & Required Plan */}
+          <div className="form-row">
+            <div className="form-group">
+              <label className="form-label">Episode Number *</label>
+              <input
+                type="number"
+                className="input-field"
+                min="1"
+                value={formData.episodeNumber}
+                onChange={(e) => setFormData({ ...formData, episodeNumber: e.target.value })}
+                required
+                disabled={uploading}
+              />
+            </div>
+
+            <div className="form-group">
+              <label className="form-label">Required Plan *</label>
+              <select
+                className="input-field"
+                value={formData.requiredPlan}
+                onChange={(e) => setFormData({ ...formData, requiredPlan: e.target.value })}
+                required
+                disabled={uploading}
+              >
+                <option value="FREE">Free</option>
+                <option value="PREMIUM">Premium</option>
+                <option value="VIP">VIP</option>
+              </select>
+            </div>
           </div>
 
+          {/* Duration & Release Date */}
+          <div className="form-row">
+            <div className="form-group">
+              <label className="form-label">Duration (seconds) *</label>
+              <input
+                type="number"
+                className="input-field"
+                min="0"
+                placeholder="e.g., 2500 for 41:40"
+                value={formData.duration}
+                onChange={(e) => setFormData({ ...formData, duration: e.target.value })}
+                required
+                disabled={uploading}
+              />
+              <small className="form-hint">
+                {formData.duration > 0 && `≈ ${formatDuration(parseInt(formData.duration))}`}
+              </small>
+            </div>
+
+            <div className="form-group">
+              <label className="form-label">Release Date *</label>
+              <input
+                type="date"
+                className="input-field"
+                value={formData.releaseDate}
+                onChange={(e) => setFormData({ ...formData, releaseDate: e.target.value })}
+                required
+                disabled={uploading}
+              />
+            </div>
+          </div>
+
+          {/* Is Locked */}
           <div className="form-group">
-            <label className="form-label">Thumbnail Image *</label>
+            <label className="form-label">
+              <input
+                type="checkbox"
+                checked={formData.isLocked}
+                onChange={(e) => setFormData({ ...formData, isLocked: e.target.checked })}
+                disabled={uploading}
+              />
+              <span style={{ marginLeft: '8px' }}>Lock this episode (Premium/VIP only)</span>
+            </label>
+          </div>
+
+          {/* Thumbnail Upload */}
+          <div className="form-group">
+            <label className="form-label">Thumbnail Image {!currentEpisode && '*'}</label>
             <input
               type="file"
               className="file-input"
               accept="image/*"
-              onChange={(e) => setFormData({ ...formData, thumbnail: e.target.files[0] })}
+              onChange={(e) => setFormData({ ...formData, thumbnailFile: e.target.files[0] })}
+              disabled={uploading}
+              required={!currentEpisode}
             />
-            <small className="form-hint">Recommended size: 1080x1920px (9:16 ratio)</small>
+            <small className="form-hint">
+              Recommended: 1080x1920px (9:16 ratio). Max 5MB.
+            </small>
+            {uploadProgress.thumbnail > 0 && uploadProgress.thumbnail < 100 && (
+              <div className="upload-progress">
+                <div className="progress-bar" style={{ width: `${uploadProgress.thumbnail}%` }}>
+                  {uploadProgress.thumbnail}%
+                </div>
+              </div>
+            )}
           </div>
 
+          {/* Video Upload */}
+          <div className="form-group">
+            <label className="form-label">Video File {!currentEpisode && '*'}</label>
+            <input
+              type="file"
+              className="file-input"
+              accept="video/*"
+              onChange={(e) => setFormData({ ...formData, videoFile: e.target.files[0] })}
+              disabled={uploading}
+              required={!currentEpisode}
+            />
+            <small className="form-hint">
+              Recommended: MP4, H.264. Max 500MB.
+            </small>
+            {uploadProgress.video > 0 && uploadProgress.video < 100 && (
+              <div className="upload-progress">
+                <div className="progress-bar" style={{ width: `${uploadProgress.video}%` }}>
+                  {uploadProgress.video}%
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Form Actions */}
           <div className="modal-actions">
-            <button type="button" className="btn btn-outline" onClick={() => setIsModalOpen(false)}>
+            <button 
+              type="button" 
+              className="btn btn-outline" 
+              onClick={() => setIsModalOpen(false)}
+              disabled={uploading}
+            >
               Cancel
             </button>
-            <button type="submit" className="btn btn-primary">
-              {currentVideo ? 'Update Video' : 'Upload Video'}
+            <button 
+              type="submit" 
+              className="btn btn-primary"
+              disabled={uploading}
+            >
+              {uploading ? 'Uploading...' : (currentEpisode ? 'Update Episode' : 'Create Episode')}
             </button>
           </div>
         </form>
@@ -490,4 +703,4 @@ const Content = () => {
   );
 };
 
-export default Content;
+export default Episode;
