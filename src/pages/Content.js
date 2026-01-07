@@ -5,7 +5,7 @@ import Table from '../components/common/Table';
 import { useToast } from '../components/common/Toast';
 import { useConfirm } from '../components/common/ConfirmDialog';
 import { SkeletonTable } from '../components/common/Loading';
-import { episodeAPI } from '../services/api';
+import { episodeAPI, seriesAPI } from '../services/api';
 import './Content.css';
 
 const Episode = () => {
@@ -20,6 +20,7 @@ const Episode = () => {
   const [currentEpisode, setCurrentEpisode] = useState(null);
   const [loading, setLoading] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const [loadingSeries, setLoadingSeries] = useState(false);
   
   const [formData, setFormData] = useState({
     seriesId: '',
@@ -44,14 +45,17 @@ const Episode = () => {
     fetchSeries();
   }, []);
 
-  // Fetch all episodes
   const fetchEpisodes = async () => {
     try {
       setLoading(true);
       const response = await episodeAPI.getAllEpisodes();
       
       if (response.success && response.data) {
-        setEpisodes(response.data);
+        const episodesData = Array.isArray(response.data) 
+          ? response.data 
+          : response.data.episodes || [];
+        setEpisodes(episodesData);
+        console.log('Episodes loaded:', episodesData.length);
       }
     } catch (error) {
       console.error('Error fetching episodes:', error);
@@ -61,26 +65,33 @@ const Episode = () => {
     }
   };
 
-  // Fetch series list for dropdown
   const fetchSeries = async () => {
     try {
-      // Replace with your series API
-      const response = await fetch('/api/dashboard/videoSeries', {
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
-        }
-      });
-      const data = await response.json();
+      setLoadingSeries(true);
+      const response = await seriesAPI.getAllSeries();
       
-      if (data.success) {
-        setSeries(data.data || []);
+      if (response.success && response.data) {
+        const seriesData = Array.isArray(response.data) 
+          ? response.data 
+          : response.data.series || response.data.videoSeries || [];
+        
+        const transformedSeries = seriesData.map(item => ({
+          id: item.id,
+          name: item.name || 'Untitled Series',
+          totalEpisodes: item.totalEpisodes || 0
+        }));
+        
+        setSeries(transformedSeries);
+        console.log('Series loaded:', transformedSeries.length);
       }
     } catch (error) {
       console.error('Error fetching series:', error);
+      toast.error('Failed to load series list');
+    } finally {
+      setLoadingSeries(false);
     }
   };
 
-  // Handle Add New Episode
   const handleAdd = () => {
     setCurrentEpisode(null);
     setFormData({
@@ -99,7 +110,6 @@ const Episode = () => {
     setIsModalOpen(true);
   };
 
-  // Handle Edit Episode
   const handleEdit = (episode) => {
     setCurrentEpisode(episode);
     setFormData({
@@ -118,7 +128,6 @@ const Episode = () => {
     setIsModalOpen(true);
   };
 
-  // Handle Delete Episode
   const handleDelete = async (episodeId) => {
     const confirmed = await confirm({
       title: 'Delete Episode',
@@ -144,12 +153,10 @@ const Episode = () => {
     }
   };
 
-  // Upload Thumbnail via Presigned URL
   const uploadThumbnail = async (file) => {
     try {
       setUploadProgress(prev => ({ ...prev, thumbnail: 10 }));
       
-      // Step 1: Get presigned URL
       const presignResponse = await episodeAPI.getThumbnailPresignedUrl({
         fileName: file.name,
         contentType: file.type
@@ -162,7 +169,6 @@ const Episode = () => {
       const { uploadUrl, publicFileUrl, key } = presignResponse.data;
       setUploadProgress(prev => ({ ...prev, thumbnail: 30 }));
 
-      // Step 2: Upload to S3
       const uploadResponse = await fetch(uploadUrl, {
         method: 'PUT',
         body: file,
@@ -184,12 +190,10 @@ const Episode = () => {
     }
   };
 
-  // Upload Video via Presigned URL
   const uploadVideo = async (file, episodeId) => {
     try {
       setUploadProgress(prev => ({ ...prev, video: 10 }));
       
-      // Step 1: Get presigned URL
       const presignResponse = await episodeAPI.getVideoPresignedUrl({
         episodeId: episodeId,
         fileName: file.name,
@@ -203,7 +207,6 @@ const Episode = () => {
       const { uploadUrl, publicFileUrl, key } = presignResponse.data;
       setUploadProgress(prev => ({ ...prev, video: 30 }));
 
-      // Step 2: Upload to S3
       const uploadResponse = await fetch(uploadUrl, {
         method: 'PUT',
         body: file,
@@ -225,9 +228,13 @@ const Episode = () => {
     }
   };
 
-  // Handle Form Submit
   const handleSubmit = async (e) => {
     e.preventDefault();
+    
+    if (!formData.seriesId) {
+      toast.error('Please select a series');
+      return;
+    }
     
     try {
       setUploading(true);
@@ -235,14 +242,12 @@ const Episode = () => {
       let thumbnailUrl = currentEpisode?.thumbnail || '';
       let videoUrl = currentEpisode?.videoUrl || '';
 
-      // Upload thumbnail if new file selected
       if (formData.thumbnailFile) {
         toast.info('Uploading thumbnail...');
         const thumbnailResult = await uploadThumbnail(formData.thumbnailFile);
         thumbnailUrl = thumbnailResult.publicFileUrl;
       }
 
-      // Create/Update Episode Metadata
       const episodeData = {
         seriesId: formData.seriesId,
         title: formData.title,
@@ -258,14 +263,12 @@ const Episode = () => {
       let episodeId = currentEpisode?.id;
 
       if (currentEpisode) {
-        // Update existing episode
         const updateResponse = await episodeAPI.updateEpisode(episodeId, episodeData);
         
         if (!updateResponse.success) {
           throw new Error(updateResponse.message || 'Failed to update episode');
         }
       } else {
-        // Create new episode
         const createResponse = await episodeAPI.createEpisode(episodeData);
         
         if (!createResponse.success || !createResponse.data) {
@@ -275,13 +278,11 @@ const Episode = () => {
         episodeId = createResponse.data.id;
       }
 
-      // Upload video if new file selected
       if (formData.videoFile && episodeId) {
         toast.info('Uploading video...');
         const videoResult = await uploadVideo(formData.videoFile, episodeId);
         videoUrl = videoResult.publicFileUrl;
         
-        // Update episode with video URL
         await episodeAPI.updateEpisode(episodeId, {
           ...episodeData,
           videoUrl: videoUrl
@@ -290,7 +291,7 @@ const Episode = () => {
 
       toast.success(currentEpisode ? 'Episode updated successfully' : 'Episode created successfully');
       setIsModalOpen(false);
-      fetchEpisodes(); // Refresh list
+      fetchEpisodes();
       
     } catch (error) {
       console.error('Error saving episode:', error);
@@ -301,7 +302,6 @@ const Episode = () => {
     }
   };
 
-  // Toggle Lock Status
   const handleToggleLock = async (episodeId, currentStatus) => {
     try {
       const episode = episodes.find(e => e.id === episodeId);
@@ -323,7 +323,11 @@ const Episode = () => {
     }
   };
 
-  // Table Columns
+  const getSeriesName = (seriesId) => {
+    const seriesItem = series.find(s => s.id === seriesId);
+    return seriesItem?.name || 'Unknown Series';
+  };
+
   const columns = [
     {
       header: 'EP #',
@@ -349,7 +353,7 @@ const Episode = () => {
           </div>
           <div>
             <div className="episode-name">{row.title}</div>
-            <div className="episode-meta">{row.seriesName || 'Unknown Series'}</div>
+            <div className="episode-meta">{getSeriesName(row.seriesId)}</div>
           </div>
         </div>
       )
@@ -416,7 +420,6 @@ const Episode = () => {
     }
   ];
 
-  // Helper function to format duration (seconds to MM:SS)
   const formatDuration = (seconds) => {
     if (!seconds) return '0:00';
     const mins = Math.floor(seconds / 60);
@@ -424,7 +427,6 @@ const Episode = () => {
     return `${mins}:${secs.toString().padStart(2, '0')}`;
   };
 
-  // Filter episodes
   const filteredEpisodes = episodes.filter(episode => {
     const matchesSearch = episode.title?.toLowerCase().includes(searchQuery.toLowerCase()) ||
                          episode.description?.toLowerCase().includes(searchQuery.toLowerCase());
@@ -441,7 +443,6 @@ const Episode = () => {
         </button>
       </div>
 
-      {/* Stats Overview */}
       <div className="stats-overview">
         <div className="stat-card-mini">
           <div className="stat-value">{episodes.length}</div>
@@ -467,7 +468,6 @@ const Episode = () => {
         </div>
       </div>
 
-      {/* Filters */}
       <div className="filters-section">
         <div className="search-box">
           <FaSearch className="search-icon" />
@@ -499,21 +499,18 @@ const Episode = () => {
         </div>
       </div>
 
-      {/* Table */}
       {loading ? (
         <SkeletonTable rows={5} columns={7} />
       ) : (
         <Table columns={columns} data={filteredEpisodes} />
       )}
 
-      {/* Add/Edit Modal */}
       <Modal
         isOpen={isModalOpen}
         onClose={() => !uploading && setIsModalOpen(false)}
         title={currentEpisode ? 'Edit Episode' : 'Add New Episode'}
       >
         <form onSubmit={handleSubmit} className="episode-form">
-          {/* Series Selection */}
           <div className="form-group">
             <label className="form-label">Series *</label>
             <select
@@ -521,16 +518,24 @@ const Episode = () => {
               value={formData.seriesId}
               onChange={(e) => setFormData({ ...formData, seriesId: e.target.value })}
               required
-              disabled={uploading}
+              disabled={uploading || loadingSeries}
             >
-              <option value="">Select Series</option>
+              <option value="">
+                {loadingSeries ? 'Loading series...' : 'Select Series'}
+              </option>
               {series.map(s => (
-                <option key={s.id} value={s.id}>{s.name}</option>
+                <option key={s.id} value={s.id}>
+                  {s.name} {s.totalEpisodes > 0 && `(${s.totalEpisodes} episodes)`}
+                </option>
               ))}
             </select>
+            {series.length === 0 && !loadingSeries && (
+              <small className="form-hint error-text">
+                No series available. Please create a series first.
+              </small>
+            )}
           </div>
 
-          {/* Title */}
           <div className="form-group">
             <label className="form-label">Episode Title *</label>
             <input
@@ -544,7 +549,6 @@ const Episode = () => {
             />
           </div>
 
-          {/* Description */}
           <div className="form-group">
             <label className="form-label">Description</label>
             <textarea
@@ -557,7 +561,6 @@ const Episode = () => {
             />
           </div>
 
-          {/* Episode Number & Required Plan */}
           <div className="form-row">
             <div className="form-group">
               <label className="form-label">Episode Number *</label>
@@ -588,7 +591,6 @@ const Episode = () => {
             </div>
           </div>
 
-          {/* Duration & Release Date */}
           <div className="form-row">
             <div className="form-group">
               <label className="form-label">Duration (seconds) *</label>
@@ -620,7 +622,6 @@ const Episode = () => {
             </div>
           </div>
 
-          {/* Is Locked */}
           <div className="form-group">
             <label className="form-label">
               <input
@@ -633,7 +634,6 @@ const Episode = () => {
             </label>
           </div>
 
-          {/* Thumbnail Upload */}
           <div className="form-group">
             <label className="form-label">Thumbnail Image {!currentEpisode && '*'}</label>
             <input
@@ -656,7 +656,6 @@ const Episode = () => {
             )}
           </div>
 
-          {/* Video Upload */}
           <div className="form-group">
             <label className="form-label">Video File {!currentEpisode && '*'}</label>
             <input
@@ -679,7 +678,6 @@ const Episode = () => {
             )}
           </div>
 
-          {/* Form Actions */}
           <div className="modal-actions">
             <button 
               type="button" 
@@ -692,7 +690,7 @@ const Episode = () => {
             <button 
               type="submit" 
               className="btn btn-primary"
-              disabled={uploading}
+              disabled={uploading || loadingSeries}
             >
               {uploading ? 'Uploading...' : (currentEpisode ? 'Update Episode' : 'Create Episode')}
             </button>

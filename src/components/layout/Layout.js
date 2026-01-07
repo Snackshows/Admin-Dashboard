@@ -125,7 +125,7 @@ const Layout = ({ children }) => {
               onClick={closeMobileMenu}
             >
               <FaFilm className="nav-icon" />
-              <span className="nav-label">WebSeries Category</span>
+              <span className="nav-label">Series Category</span>
             </Link>
             <Link
               to="/film-list"
@@ -133,7 +133,7 @@ const Layout = ({ children }) => {
               onClick={closeMobileMenu}
             >
               <FaList className="nav-icon" />
-              <span className="nav-label">WebSeries List</span>
+              <span className="nav-label">Series List</span>
             </Link>
             {/* <Link
               to="/episode-list"

@@ -50,7 +50,7 @@ const Login = () => {
         <div className="login-hero">
           <h1 className="hero-title">
             Welcome to<br />
-            StoryBox Admin
+            SnackShows Admin
           </h1>
           <p className="hero-subtitle">
             Manage your video streaming platform with powerful tools and insights
@@ -149,9 +149,9 @@ const Login = () => {
               </div>
             </div>
 
-            <div className="forgot-password">
+            {/* <div className="forgot-password">
               <a href="/forgot-password">Forgot Password ?</a>
-            </div>
+            </div> */}
 
             <button 
               type="submit" 

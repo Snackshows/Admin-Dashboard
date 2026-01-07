@@ -22,18 +22,16 @@ const FilmList = () => {
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
   
-  // Form state
   const [formData, setFormData] = useState({
     name: '',
     description: '',
-    categoryIds: [],  // Changed from categoryId to categoryIds (array)
-    languageId: '',   // NEW: Single language selection
+    categoryIds: [],
+    languageId: '',
     releaseDate: '',
     isTrending: false,
     isActive: true
   });
   
-  // Image states
   const [thumbnailPreview, setThumbnailPreview] = useState(null);
   const [thumbnailFile, setThumbnailFile] = useState(null);
   const [thumbnailUrl, setThumbnailUrl] = useState(null);
@@ -42,7 +40,6 @@ const FilmList = () => {
   const [bannerFile, setBannerFile] = useState(null);
   const [bannerUrl, setBannerUrl] = useState(null);
   
-  // Pagination
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const itemsPerPage = 10;
@@ -63,7 +60,6 @@ const FilmList = () => {
         languageAPI.getAllLanguages()
       ]);
       
-      // Process series data
       if (seriesResponse.success && seriesResponse.data) {
         const seriesData = Array.isArray(seriesResponse.data) 
           ? seriesResponse.data 
@@ -95,7 +91,6 @@ const FilmList = () => {
         setTotalPages(Math.ceil(total / itemsPerPage));
       }
       
-      // Process categories
       if (categoriesResponse.success && categoriesResponse.data) {
         const categoriesData = Array.isArray(categoriesResponse.data)
           ? categoriesResponse.data
@@ -103,7 +98,6 @@ const FilmList = () => {
         setCategories(categoriesData.filter(cat => cat.isActive !== false));
       }
       
-      // Process languages
       if (languagesResponse.success && languagesResponse.data) {
         const languagesData = Array.isArray(languagesResponse.data)
           ? languagesResponse.data
@@ -394,17 +388,16 @@ const FilmList = () => {
     item.uniqueId.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
+  const numberedSeries = filteredSeries.map((item, index) => ({
+    ...item,
+    rowNumber: (currentPage - 1) * itemsPerPage + index + 1
+  }));
+
   const columns = [
     {
       header: 'NO',
-      render: (row, index) => (currentPage - 1) * itemsPerPage + index + 1,
+      accessor: 'rowNumber',
       width: '60px'
-    },
-    {
-      header: 'UNIQUE ID',
-      render: (row) => (
-        <span className="unique-id">{row.uniqueId}</span>
-      )
     },
     {
       header: 'THUMBNAIL',
@@ -466,27 +459,7 @@ const FilmList = () => {
         <span className="episode-count">{row.totalEpisodes}</span>
       )
     },
-    {
-      header: 'TRENDING',
-      render: (row) => (
-        <div className="toggle-with-icon">
-          <Toggle
-            checked={row.isTrending}
-            onChange={() => handleToggle(row.id, 'isTrending', row.isTrending)}
-          />
-          {row.isTrending && <FaStar className="trending-star" />}
-        </div>
-      )
-    },
-    {
-      header: 'STATUS',
-      render: (row) => (
-        <Toggle
-          checked={row.isActive}
-          onChange={() => handleToggle(row.id, 'isActive', row.isActive)}
-        />
-      )
-    },
+    
     {
       header: 'ACTION',
       render: (row) => (
@@ -512,7 +485,6 @@ const FilmList = () => {
 
   return (
     <div className="film-list-page">
-      {/* Page Header */}
       <div className="page-header">
         <h2 className="page-title">Film / Series List</h2>
         <div className="header-actions">
@@ -532,18 +504,16 @@ const FilmList = () => {
         </div>
       </div>
 
-      {/* Table */}
       {loading ? (
         <SkeletonTable rows={5} columns={11} />
       ) : (
         <Table
           columns={columns}
-          data={filteredSeries}
+          data={numberedSeries}
           emptyMessage="No series found"
         />
       )}
 
-      {/* Pagination */}
       {!loading && totalPages > 1 && (
         <div className="pagination">
           <span>Showing {currentPage} out of {totalPages} pages</span>
@@ -588,7 +558,6 @@ const FilmList = () => {
         </div>
       )}
 
-      {/* Add/Edit Modal */}
       <Modal
         isOpen={isModalOpen}
         onClose={() => {
@@ -600,7 +569,6 @@ const FilmList = () => {
         size="large"
       >
         <form onSubmit={handleSubmit} className="series-form">
-          {/* Thumbnail Upload */}
           <div className="form-group">
             <label className="form-label">Thumbnail Image *</label>
             <div className="image-upload-section">
@@ -635,7 +603,6 @@ const FilmList = () => {
             </div>
           </div>
 
-          {/* Banner Upload */}
           <div className="form-group">
             <label className="form-label">Banner Image *</label>
             <div className="image-upload-section">
@@ -670,7 +637,6 @@ const FilmList = () => {
             </div>
           </div>
 
-          {/* Series Name */}
           <div className="form-group">
             <label className="form-label">Series Name *</label>
             <input
@@ -682,7 +648,6 @@ const FilmList = () => {
             />
           </div>
 
-          {/* Categories (Multiple Selection) */}
           <div className="form-group">
             <label className="form-label">Categories * (Select Multiple)</label>
             <div className="category-checkboxes">
@@ -699,7 +664,6 @@ const FilmList = () => {
             </div>
           </div>
 
-          {/* Language (Single Selection) */}
           <div className="form-group">
             <label className="form-label">Language *</label>
             <select
@@ -714,7 +678,6 @@ const FilmList = () => {
             </select>
           </div>
 
-          {/* Description */}
           <div className="form-group">
             <label className="form-label">Description</label>
             <textarea
@@ -725,7 +688,6 @@ const FilmList = () => {
             />
           </div>
 
-          {/* Release Date */}
           <div className="form-group">
             <label className="form-label">Release Date</label>
             <input
@@ -735,7 +697,6 @@ const FilmList = () => {
             />
           </div>
 
-          {/* Checkboxes */}
           <div className="checkbox-row">
             <div className="checkbox-group">
               <label>
@@ -760,7 +721,6 @@ const FilmList = () => {
             </div>
           </div>
 
-          {/* Actions */}
           <div className="form-actions">
             <button
               type="button"
