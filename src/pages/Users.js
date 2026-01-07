@@ -1,21 +1,28 @@
-import React, { useState, useEffect } from 'react';
-import { FaEdit, FaEye, FaHistory, FaSearch, FaBan, FaCheckCircle } from 'react-icons/fa';
-import { useNavigate } from 'react-router-dom';
-import Table from '../components/common/Table';
-import Toggle from '../components/common/Toggle';
-import { useToast } from '../components/common/Toast';
-import { useConfirm } from '../components/common/ConfirmDialog';
-import { SkeletonTable } from '../components/common/Loading';
-import { usersAPI } from '../services/api';
-import './Users.css';
+import React, { useState, useEffect } from "react";
+import {
+  FaEdit,
+  FaEye,
+  FaHistory,
+  FaSearch,
+  FaBan,
+  FaCheckCircle,
+} from "react-icons/fa";
+import { useNavigate } from "react-router-dom";
+import Table from "../components/common/Table";
+import Toggle from "../components/common/Toggle";
+import { useToast } from "../components/common/Toast";
+import { useConfirm } from "../components/common/ConfirmDialog";
+import { SkeletonTable } from "../components/common/Loading";
+import { usersAPI } from "../services/api";
+import "./Users.css";
 
 const Users = () => {
   const navigate = useNavigate();
   const toast = useToast();
   const confirm = useConfirm();
-  
+
   const [users, setUsers] = useState([]);
-  const [searchQuery, setSearchQuery] = useState('');
+  const [searchQuery, setSearchQuery] = useState("");
   const [loading, setLoading] = useState(false);
   const [totalUsers, setTotalUsers] = useState(0);
 
@@ -26,43 +33,44 @@ const Users = () => {
   const fetchUsers = async () => {
     try {
       setLoading(true);
-      
+
       // Call real API
       const response = await usersAPI.getAllUsers();
       console.log(response);
-      
+
       if (response.success && response.data) {
         // API returns data in response.data.users format
         const usersData = response.data.user || response.data;
-        
+
         // Transform API data to match our table format
         const transformedUsers = usersData.map((user) => ({
           id: user.id,
-          name: user.name || 'Guest',
+          name: user.name || "Guest",
           uniqueId: user.id.substring(0, 8), // First 8 chars of ID
           email: user.email,
           coins: user.coins || 0,
-          plan: user.plan || 'free',
-          date: user.joinedOn ? new Date(user.joinedOn).toLocaleDateString('en-GB') : 
-                user.createdAt ? new Date(user.createdAt).toLocaleDateString('en-GB') : 
-                new Date().toLocaleDateString('en-GB'),
+          plan: user.plan || "free",
+          date: user.joinedOn
+            ? new Date(user.joinedOn).toLocaleDateString("en-GB")
+            : user.createdAt
+            ? new Date(user.createdAt).toLocaleDateString("en-GB")
+            : new Date().toLocaleDateString("en-GB"),
           blocked: user.isBlocked || false,
-          isActive: user.isActive !== false
+          isActive: user.isActive !== false,
         }));
-        
+
         setUsers(transformedUsers);
         setTotalUsers(response.data.totalUsers || transformedUsers.length);
-        
-        console.log('Users loaded:', transformedUsers.length);
+
+        console.log("Users loaded:", transformedUsers.length);
       } else {
-        console.error('API response:', response);
-        toast.error('Failed to load users');
+        console.error("API response:", response);
+        toast.error("Failed to load users");
       }
-      
     } catch (error) {
-      console.error('Error fetching users:', error);
-      toast.error(error.message || 'Failed to load users');
-      
+      console.error("Error fetching users:", error);
+      toast.error(error.message || "Failed to load users");
+
       // Fallback to empty array on error
       setUsers([]);
     } finally {
@@ -72,12 +80,12 @@ const Users = () => {
 
   const handleBlockToggle = async (userId, currentStatus) => {
     const confirmed = await confirm({
-      title: currentStatus ? 'Unblock User' : 'Block User',
-      message: currentStatus 
-        ? 'Are you sure you want to unblock this user?' 
-        : 'Are you sure you want to block this user? They will not be able to access the platform.',
-      confirmText: currentStatus ? 'Unblock' : 'Block',
-      type: 'warning'
+      title: currentStatus ? "Unblock User" : "Block User",
+      message: currentStatus
+        ? "Are you sure you want to unblock this user?"
+        : "Are you sure you want to block this user? They will not be able to access the platform.",
+      confirmText: currentStatus ? "Unblock" : "Block",
+      type: "warning",
     });
 
     if (!confirmed) return;
@@ -86,18 +94,24 @@ const Users = () => {
       // Call real API
       await usersAPI.changeUserPermission({
         id: userId,
-        isBlocked: !currentStatus
+        isBlocked: !currentStatus,
       });
-      
+
       // Update local state
-      setUsers(users.map(user => 
-        user.id === userId ? { ...user, blocked: !currentStatus } : user
-      ));
-      
-      toast.success(currentStatus ? 'User unblocked successfully' : 'User blocked successfully');
+      setUsers(
+        users.map((user) =>
+          user.id === userId ? { ...user, blocked: !currentStatus } : user
+        )
+      );
+
+      toast.success(
+        currentStatus
+          ? "User unblocked successfully"
+          : "User blocked successfully"
+      );
     } catch (error) {
-      console.error('Error toggling user block status:', error);
-      toast.error(error.message || 'Failed to update user status');
+      console.error("Error toggling user block status:", error);
+      toast.error(error.message || "Failed to update user status");
     }
   };
 
@@ -106,75 +120,72 @@ const Users = () => {
   };
 
   const handleEdit = (userId) => {
-    toast.info('Edit feature coming soon!');
+    toast.info("Edit feature coming soon!");
     // navigate(`/users/edit/${userId}`);
   };
 
   const handleHistory = (userId) => {
-    toast.info('History feature coming soon!');
+    toast.info("History feature coming soon!");
     // navigate(`/users/history/${userId}`);
   };
 
   const columns = [
     {
-      header: 'NO',
-      accessor: 'id',
-      width: '60px'
+      header: "NO",
+      accessor: "id",
+      width: "60px",
     },
     {
-      header: 'USER NAME',
-      accessor: 'name',
+      header: "USER NAME",
+      accessor: "name",
       render: (row) => (
         <div className="user-cell">
-          <div className="user-avatar">
-            {row.name.charAt(0)}
-          </div>
+          <div className="user-avatar">{row.name.charAt(0)}</div>
           <span>{row.name}</span>
         </div>
-      )
+      ),
     },
     {
-      header: 'UNIQUE ID',
-      accessor: 'uniqueId'
+      header: "UNIQUE ID",
+      accessor: "uniqueId",
     },
     {
-      header: 'PLAN',
-      accessor: 'plan'
+      header: "PLAN",
+      accessor: "plan",
     },
     {
-      header: 'DATE',
-      accessor: 'date'
+      header: "DATE",
+      accessor: "date",
     },
     {
-      header: 'BLOCK',
+      header: "BLOCK",
       render: (row) => (
         <Toggle
           checked={row.blocked}
           onChange={(checked) => handleBlockToggle(row.id, row.blocked)}
         />
-      )
+      ),
     },
     {
-      header: 'ACTION',
+      header: "ACTION",
       render: (row) => (
         <div className="action-buttons">
-          
-          <button 
+          <button
             className="action-btn view-btn"
             onClick={() => handleViewProfile(row.id)}
             title="View Profile"
           >
             <FaEye />
           </button>
-  
         </div>
-      )
-    }
+      ),
+    },
   ];
 
-  const filteredUsers = users.filter(user =>
-    user.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    user.uniqueId.includes(searchQuery)
+  const filteredUsers = users.filter(
+    (user) =>
+      user.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      user.uniqueId.includes(searchQuery)
   );
 
   return (

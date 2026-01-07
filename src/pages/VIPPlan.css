@@ -1,15 +1,91 @@
-.vip-plan-page { max-width: 1400px; margin: 0 auto; }
-.vip-plans-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 24px; margin-top: 32px; }
-.vip-plan-card { background: white; border-radius: 20px; padding: 36px 28px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); position: relative; transition: all 0.3s ease; }
-.vip-plan-card:hover { transform: translateY(-8px); box-shadow: 0 12px 24px rgba(0,0,0,0.15); }
-.vip-plan-card.popular { border: 3px solid #FF0080; background: linear-gradient(135deg, #FFF 0%, #FFF5FA 100%); }
-.vip-plan-card h3 { font-size: 24px; font-weight: 800; margin-bottom: 16px; text-align: center; }
-.plan-price { text-align: center; margin-bottom: 12px; }
-.currency { font-size: 20px; font-weight: 600; vertical-align: super; }
-.amount { font-size: 48px; font-weight: 800; background: var(--primary-gradient); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
-.period { font-size: 16px; color: var(--text-secondary); }
-.plan-users { text-align: center; color: var(--text-light); font-size: 14px; margin-bottom: 24px; }
-.plan-features { list-style: none; padding: 0; margin: 0 0 24px 0; }
-.plan-features li { padding: 10px 0; display: flex; align-items: center; gap: 12px; font-size: 14px; }
-.check-icon { color: #10B981; font-size: 16px; }
-.btn-block { width: 100%; }
+.vip-plan-page {
+    max-width: 1400px;
+    margin: 0 auto;
+}
+
+.vip-plans-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    gap: 24px;
+    margin-top: 32px;
+}
+
+.vip-plan-card {
+    background: white;
+    border-radius: 20px;
+    padding: 36px 28px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    position: relative;
+    transition: all 0.3s ease;
+}
+
+.vip-plan-card:hover {
+    transform: translateY(-8px);
+    box-shadow: 0 12px 24px rgba(0, 0, 0, 0.15);
+}
+
+.vip-plan-card.popular {
+    border: 3px solid #FF0080;
+    background: linear-gradient(135deg, #FFF 0%, #FFF5FA 100%);
+}
+
+.vip-plan-card h3 {
+    font-size: 24px;
+    font-weight: 800;
+    margin-bottom: 16px;
+    text-align: center;
+}
+
+.plan-price {
+    text-align: center;
+    margin-bottom: 12px;
+}
+
+.currency {
+    font-size: 20px;
+    font-weight: 600;
+    vertical-align: super;
+}
+
+.amount {
+    font-size: 48px;
+    font-weight: 800;
+    background: var(--primary-gradient);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+}
+
+.period {
+    font-size: 16px;
+    color: var(--text-secondary);
+}
+
+.plan-users {
+    text-align: center;
+    color: var(--text-light);
+    font-size: 14px;
+    margin-bottom: 24px;
+}
+
+.plan-features {
+    list-style: none;
+    padding: 0;
+    margin: 0 0 24px 0;
+}
+
+.plan-features li {
+    padding: 10px 0;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    font-size: 14px;
+}
+
+.check-icon {
+    color: #10B981;
+    font-size: 16px;
+}
+
+.btn-block {
+    width: 100%;
+}
