@@ -20,7 +20,6 @@ const FilmCategory = () => {
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
   
-  // Form state
   const [formData, setFormData] = useState({
     name: '',
     description: '',
@@ -30,7 +29,6 @@ const FilmCategory = () => {
   const [imagePreview, setImagePreview] = useState(null);
   const [imageFile, setImageFile] = useState(null);
   
-  // Search & Pagination
   const [searchQuery, setSearchQuery] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
@@ -62,7 +60,6 @@ const FilmCategory = () => {
         setCategories(categoriesData);
         setFilteredCategories(categoriesData);
         
-        // Calculate total pages
         const total = response.data.total || response.data.totalCategories || categoriesData.length;
         setTotalPages(Math.ceil(total / itemsPerPage));
         
@@ -108,7 +105,6 @@ const FilmCategory = () => {
       
       setImageFile(file);
       
-      // Create preview
       const reader = new FileReader();
       reader.onloadend = () => {
         setImagePreview(reader.result);
@@ -125,7 +121,6 @@ const FilmCategory = () => {
 
   const uploadImage = async (file) => {
     try {
-      // Step 1: Get presigned URL
       const presignResponse = await categoryAPI.getThumbnailUploadUrl({
         fileName: file.name,
         contentType: file.type
@@ -137,14 +132,12 @@ const FilmCategory = () => {
       
       const { uploadUrl, publicS3Url } = presignResponse.data;
       
-      // Step 2: Upload to S3
       const uploadSuccess = await categoryAPI.uploadToS3(uploadUrl, file);
       
       if (!uploadSuccess) {
         throw new Error('Failed to upload image');
       }
       
-      // Step 3: Return public URL
       return publicS3Url;
     } catch (error) {
       console.error('Error uploading image:', error);
@@ -232,7 +225,6 @@ const FilmCategory = () => {
       
       let imageUrl = formData.image;
       
-      // Upload new image if selected
       if (imageFile) {
         imageUrl = await uploadImage(imageFile);
       }
@@ -245,7 +237,6 @@ const FilmCategory = () => {
       };
       
       if (currentCategory) {
-        // Update existing category
         categoryData.id = currentCategory.id;
         const response = await categoryAPI.updateCategory(categoryData);
         
@@ -256,7 +247,6 @@ const FilmCategory = () => {
           toast.error(response.message || 'Failed to update category');
         }
       } else {
-        // Create new category
         const response = await categoryAPI.createCategory(categoryData);
         
         if (response.success) {
@@ -277,18 +267,18 @@ const FilmCategory = () => {
     }
   };
 
+  const numberedCategories = filteredCategories.map((category, index) => ({
+    ...category,
+    rowNumber: (currentPage - 1) * itemsPerPage + index + 1
+  }));
+
   const columns = [
     {
       header: 'NO',
-      render: (row, index) => (currentPage - 1) * itemsPerPage + index + 1,
+      accessor: 'rowNumber',
       width: '60px'
     },
-    {
-      header: 'UNIQUE ID',
-      render: (row) => (
-        <span className="unique-id">{row.uniqueId || `#CAT${row.id?.substring(0, 6)}`}</span>
-      )
-    },
+   
     {
       header: 'CATEGORY IMAGE',
       render: (row) => (
@@ -362,7 +352,6 @@ const FilmCategory = () => {
 
   return (
     <div className="film-category-page">
-      {/* Page Header */}
       <div className="page-header">
         <h2 className="page-title">Film Category</h2>
         <button className="btn btn-primary" onClick={handleAdd}>
@@ -370,7 +359,6 @@ const FilmCategory = () => {
         </button>
       </div>
 
-      {/* Search Bar */}
       <div className="search-section">
         <div className="search-box">
           <FaSearch className="search-icon" />
@@ -384,14 +372,12 @@ const FilmCategory = () => {
         </div>
       </div>
 
-      {/* Table */}
       {loading ? (
         <SkeletonTable rows={5} columns={8} />
       ) : (
-        <Table columns={columns} data={filteredCategories} />
+        <Table columns={columns} data={numberedCategories} />
       )}
 
-      {/* Pagination */}
       {!loading && totalPages > 1 && (
         <div className="pagination">
           <span>
@@ -438,7 +424,6 @@ const FilmCategory = () => {
         </div>
       )}
 
-      {/* Modal */}
       <Modal
         isOpen={isModalOpen}
         onClose={() => {
@@ -449,7 +434,6 @@ const FilmCategory = () => {
         size="medium"
       >
         <form onSubmit={handleSubmit} className="category-form">
-          {/* Image Upload */}
           <div className="form-group">
             <label className="form-label">Category Image</label>
             <div className="file-input-container">
@@ -485,7 +469,6 @@ const FilmCategory = () => {
             </div>
           </div>
 
-          {/* Name */}
           <div className="form-group">
             <label className="form-label">Category Name *</label>
             <input
@@ -498,7 +481,6 @@ const FilmCategory = () => {
             />
           </div>
 
-          {/* Description */}
           <div className="form-group">
             <label className="form-label">Description</label>
             <textarea
@@ -510,7 +492,6 @@ const FilmCategory = () => {
             />
           </div>
 
-          {/* Active Status */}
           <div className="form-group">
             <label className="form-checkbox">
               <input
@@ -522,7 +503,6 @@ const FilmCategory = () => {
             </label>
           </div>
 
-          {/* Actions */}
           <div className="modal-actions">
             <button
               type="button"

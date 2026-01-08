@@ -33,20 +33,17 @@ const Users = () => {
   const fetchUsers = async () => {
     try {
       setLoading(true);
-
-      // Call real API
+      
       const response = await usersAPI.getAllUsers();
       console.log(response);
 
       if (response.success && response.data) {
-        // API returns data in response.data.users format
         const usersData = response.data.user || response.data;
-
-        // Transform API data to match our table format
+        
         const transformedUsers = usersData.map((user) => ({
           id: user.id,
-          name: user.name || "Guest",
-          uniqueId: user.id.substring(0, 8), // First 8 chars of ID
+          name: user.name || 'Guest',
+          uniqueId: user.id.substring(0, 8),
           email: user.email,
           coins: user.coins || 0,
           plan: user.plan || "free",
@@ -68,10 +65,8 @@ const Users = () => {
         toast.error("Failed to load users");
       }
     } catch (error) {
-      console.error("Error fetching users:", error);
-      toast.error(error.message || "Failed to load users");
-
-      // Fallback to empty array on error
+      console.error('Error fetching users:', error);
+      toast.error(error.message || 'Failed to load users');
       setUsers([]);
     } finally {
       setLoading(false);
@@ -91,24 +86,16 @@ const Users = () => {
     if (!confirmed) return;
 
     try {
-      // Call real API
       await usersAPI.changeUserPermission({
         id: userId,
         isBlocked: !currentStatus,
       });
-
-      // Update local state
-      setUsers(
-        users.map((user) =>
-          user.id === userId ? { ...user, blocked: !currentStatus } : user
-        )
-      );
-
-      toast.success(
-        currentStatus
-          ? "User unblocked successfully"
-          : "User blocked successfully"
-      );
+      
+      setUsers(users.map(user => 
+        user.id === userId ? { ...user, blocked: !currentStatus } : user
+      ));
+      
+      toast.success(currentStatus ? 'User unblocked successfully' : 'User blocked successfully');
     } catch (error) {
       console.error("Error toggling user block status:", error);
       toast.error(error.message || "Failed to update user status");
@@ -120,20 +107,28 @@ const Users = () => {
   };
 
   const handleEdit = (userId) => {
-    toast.info("Edit feature coming soon!");
-    // navigate(`/users/edit/${userId}`);
+    toast.info('Edit feature coming soon!');
   };
 
   const handleHistory = (userId) => {
-    toast.info("History feature coming soon!");
-    // navigate(`/users/history/${userId}`);
+    toast.info('History feature coming soon!');
   };
+
+  const filteredUsers = users.filter(user =>
+    user.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    user.uniqueId.includes(searchQuery)
+  );
+
+  const numberedUsers = filteredUsers.map((user, index) => ({
+    ...user,
+    rowNumber: index + 1
+  }));
 
   const columns = [
     {
-      header: "NO",
-      accessor: "id",
-      width: "60px",
+      header: 'NO',
+      accessor: 'rowNumber',
+      width: '60px'
     },
     {
       header: "USER NAME",
@@ -170,7 +165,7 @@ const Users = () => {
       header: "ACTION",
       render: (row) => (
         <div className="action-buttons">
-          <button
+          <button 
             className="action-btn view-btn"
             onClick={() => handleViewProfile(row.id)}
             title="View Profile"
@@ -181,12 +176,6 @@ const Users = () => {
       ),
     },
   ];
-
-  const filteredUsers = users.filter(
-    (user) =>
-      user.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      user.uniqueId.includes(searchQuery)
-  );
 
   return (
     <div className="users-page">
@@ -207,7 +196,7 @@ const Users = () => {
       {loading ? (
         <SkeletonTable rows={8} columns={7} />
       ) : (
-        <Table columns={columns} data={filteredUsers} />
+        <Table columns={columns} data={numberedUsers} />
       )}
     </div>
   );

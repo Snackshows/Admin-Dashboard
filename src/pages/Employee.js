@@ -173,11 +173,7 @@ const Employee = () => {
   };
 
   const columns = [
-    {
-      header: 'NO',
-      render: (row, index) => index + 1,
-      width: '60px'
-    },
+    
     {
       header: 'EMPLOYEE',
       render: (row) => (
