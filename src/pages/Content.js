@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { FaEdit, FaTrash, FaEye, FaSearch, FaLock, FaUnlock, FaPlay } from 'react-icons/fa';
+import { FaEdit, FaTrash, FaEye, FaSearch, FaLock, FaUnlock, FaPlay, FaCheckCircle, FaClock, FaSpinner, FaFileAlt } from 'react-icons/fa';
 import Modal from '../components/common/Modal';
 import Table from '../components/common/Table';
 import { useToast } from '../components/common/Toast';
@@ -371,6 +371,37 @@ const Episode = () => {
       header: 'DURATION',
       accessor: 'duration',
       render: (row) => formatDuration(row.duration)
+    },
+    {
+      header: 'Upload Status',
+      accessor: 'uploadstatus',
+      render: (row) => {
+        const getStatusConfig = (status) => {
+          const statusLower = status?.toLowerCase() || '';
+          
+          if (statusLower === 'done' || statusLower === 'completed' || statusLower === 'success') {
+            return { icon: <FaCheckCircle />, className: 'status-done', text: 'Done' };
+          }
+          if (statusLower === 'pending') {
+            return { icon: <FaClock />, className: 'status-pending', text: 'Pending' };
+          }
+          if (statusLower === 'processing' || statusLower === 'uploading') {
+            return { icon: <FaSpinner />, className: 'status-processing', text: 'Processing' };
+          }
+          if (statusLower === 'draft') {
+            return { icon: <FaFileAlt />, className: 'status-draft', text: 'Draft' };
+          }
+          return { icon: <FaFileAlt />, className: 'status-unknown', text: status || 'Unknown' };
+        };
+    
+        const config = getStatusConfig(row.status);
+        return (
+          <span className={`upload-status-badge ${config.className}`}>
+            {config.icon}
+            <span>{config.text}</span>
+          </span>
+        );
+      }
     },
     {
       header: 'RELEASE DATE',
