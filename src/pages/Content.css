@@ -740,6 +740,82 @@
       transition-duration: 0.01ms !important;
     }
   }
+
+
+
+.upload-status-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: capitalize;
+  transition: all 0.3s ease;
+  white-space: nowrap;
+}
+
+.upload-status-badge svg {
+  font-size: 14px;
+  flex-shrink: 0;
+}
+
+.upload-status-badge.status-done {
+  background: linear-gradient(135deg, #D1FAE5 0%, #A7F3D0 100%);
+  color: #047857;
+  border: 1px solid #6EE7B7;
+}
+
+.upload-status-badge.status-pending {
+  background: linear-gradient(135deg, #FEF3C7 0%, #FDE68A 100%);
+  color: #D97706;
+  border: 1px solid #FCD34D;
+}
+
+.upload-status-badge.status-processing {
+  background: linear-gradient(135deg, #DBEAFE 0%, #BFDBFE 100%);
+  color: #1D4ED8;
+  border: 1px solid #93C5FD;
+}
+
+.upload-status-badge.status-processing svg {
+  animation: spin 1.5s linear infinite;
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+.upload-status-badge.status-draft {
+  background: linear-gradient(135deg, #F3F4F6 0%, #E5E7EB 100%);
+  color: #6B7280;
+  border: 1px solid #D1D5DB;
+}
+
+.upload-status-badge.status-unknown {
+  background: linear-gradient(135deg, #F9FAFB 0%, #F3F4F6 100%);
+  color: #9CA3AF;
+  border: 1px solid #E5E7EB;
+}
+
+.upload-status-badge:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+@media (max-width: 768px) {
+  .upload-status-badge {
+    font-size: 11px;
+    padding: 5px 10px;
+    gap: 5px;
+  }
+
+  .upload-status-badge svg {
+    font-size: 12px;
+  }
+}
   
   /* ========================================
      END OF EPISODE PAGE CSS
