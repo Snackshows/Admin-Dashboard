@@ -116,11 +116,28 @@ const Dashboard = () => {
     }
   ];
 
+  const [userName, setUserName] = useState('Admin');
+
+  useEffect(() => {
+    // Get user data from localStorage
+    const userDataString = localStorage.getItem('user');
+    if (userDataString) {
+      try {
+        const userData = JSON.parse(userDataString);
+        // Get username specifically
+        setUserName(userData.username);
+      } catch (error) {
+        console.error('Error parsing user data:', error);
+        setUserName('Admin');
+      }
+    }
+  }, []);
+
   return (
     <div className="dashboard">
       <div className="dashboard-header">
         <div>
-          <h1 className="page-title">Welcome Admin !</h1>
+          <h1 className="page-title">Welcome {userName} !</h1>
           <h2 className="section-title">Dashboard</h2>
         </div>
         <div className="dashboard-actions">
