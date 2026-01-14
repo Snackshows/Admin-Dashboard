@@ -241,6 +241,28 @@ export const episodeAPI = {
 };
 
 
+// ==================== SUBSCRIPTION API ====================
+export const subscriptionAPI = {
+  // POST /dashboard/subscription - Create New Subscription
+  createSubscription: (data) => apiCall('/dashboard/subscription', 'POST', data),
+  
+  // GET /dashboard/subscription - Get All Subscriptions
+  getAllSubscriptions: (params) => {
+    const queryString = params ? `?${new URLSearchParams(params)}` : '';
+    return apiCall(`/dashboard/subscription${queryString}`, 'GET');
+  },
+  
+  // GET /dashboard/subscription/:id - Get Subscription Details by ID
+  getSubscriptionById: (subscriptionId) => apiCall(`/dashboard/subscription/${subscriptionId}`, 'GET'),
+  
+  // PUT /dashboard/subscription - Update Subscription
+  updateSubscription: (data) => apiCall('/dashboard/subscription', 'PUT', data),
+  
+  // DELETE /dashboard/subscription/:id - Delete Subscription
+  deleteSubscription: (subscriptionId) => apiCall(`/dashboard/subscription/${subscriptionId}`, 'DELETE'),
+};
+
+
 // Export all APIs as a single object
 const API = {
   dashboard: dashboardAPI,
@@ -254,6 +276,7 @@ const API = {
   upload: uploadAPI,
   language: languageAPI, 
   episode: episodeAPI, 
+  subscription: subscriptionAPI,
 };
 
 export default API;
