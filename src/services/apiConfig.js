@@ -1,7 +1,7 @@
 // API Configuration with Retry Logic and Error Handling
 // const BASE_URL = 'https://king-prawn-app-ewizm.ondigitalocean.app/api/v1';
-// const BASE_URL = process.env.REACT_APP_API_BASE_URL;
-const BASE_URL = "http://localhost:8000/api/v1";
+const BASE_URL = process.env.REACT_APP_API_BASE_URL;
+// const BASE_URL = "http://localhost:8000/api/v1";
 
 // Token management
 const getAuthToken = () => {
