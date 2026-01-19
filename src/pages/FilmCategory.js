@@ -1,110 +1,121 @@
-import React, { useState, useEffect } from 'react';
-import { FaEdit, FaTrash, FaPlus, FaSearch, FaImage, FaTimes } from 'react-icons/fa';
-import Table from '../components/common/Table';
-import Toggle from '../components/common/Toggle';
-import Modal from '../components/common/Modal';
-import { categoryAPI } from '../services/api';
-import { useToast } from '../components/common/Toast';
-import { useConfirm } from '../components/common/ConfirmDialog';
-import { SkeletonTable } from '../components/common/Loading';
-import './FilmCategory.css';
+import React, { useState, useEffect, useCallback } from "react";
+import {
+  FaEdit,
+  FaTrash,
+  FaPlus,
+  FaSearch,
+  FaImage,
+  FaTimes,
+} from "react-icons/fa";
+import Table from "../components/common/Table";
+import Toggle from "../components/common/Toggle";
+import Modal from "../components/common/Modal";
+import { categoryAPI } from "../services/api";
+import { useToast } from "../components/common/Toast";
+import { useConfirm } from "../components/common/ConfirmDialog";
+import { SkeletonTable } from "../components/common/Loading";
+import "./FilmCategory.css";
 
 const FilmCategory = () => {
   const toast = useToast();
   const confirm = useConfirm();
-  
+
   const [categories, setCategories] = useState([]);
   const [filteredCategories, setFilteredCategories] = useState([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [currentCategory, setCurrentCategory] = useState(null);
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
-  
+
   const [formData, setFormData] = useState({
-    name: '',
-    description: '',
+    name: "",
+    description: "",
     isActive: true,
-    image: null
+    image: null,
   });
   const [imagePreview, setImagePreview] = useState(null);
   const [imageFile, setImageFile] = useState(null);
-  
-  const [searchQuery, setSearchQuery] = useState('');
+
+  const [searchQuery, setSearchQuery] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const itemsPerPage = 10;
 
-  useEffect(() => {
-    fetchCategories();
-  }, [currentPage]);
-
-  useEffect(() => {
-    handleSearch();
-  }, [searchQuery, categories]);
-
-  const fetchCategories = async () => {
+  const fetchCategories = useCallback(async () => {
     try {
       setLoading(true);
       const params = {
         page: currentPage,
-        limit: itemsPerPage
+        limit: itemsPerPage,
       };
-      
+
       const response = await categoryAPI.getAllCategories(params);
-      
+
       if (response.success && response.data) {
-        const categoriesData = Array.isArray(response.data) 
-          ? response.data 
+        const categoriesData = Array.isArray(response.data)
+          ? response.data
           : response.data.categories || [];
-        
+
         setCategories(categoriesData);
         setFilteredCategories(categoriesData);
-        
-        const total = response.data.total || response.data.totalCategories || categoriesData.length;
+
+        const total =
+          response.data.total ||
+          response.data.totalCategories ||
+          categoriesData.length;
         setTotalPages(Math.ceil(total / itemsPerPage));
-        
-        console.log('Categories loaded:', categoriesData.length);
+
+        console.log("Categories loaded:", categoriesData.length);
       } else {
-        toast.error('Failed to load categories');
+        toast.error("Failed to load categories");
       }
     } catch (error) {
-      console.error('Error fetching categories:', error);
-      toast.error(error.message || 'Failed to load categories');
+      console.error("Error fetching categories:", error);
+      toast.error(error.message || "Failed to load categories");
     } finally {
       setLoading(false);
     }
-  };
+  }, [currentPage, toast]);
 
-  const handleSearch = () => {
+  const handleSearch = useCallback(() => {
     if (!searchQuery.trim()) {
       setFilteredCategories(categories);
       return;
     }
-    
-    const filtered = categories.filter(cat =>
-      cat.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      cat.description?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      cat.uniqueId?.toLowerCase().includes(searchQuery.toLowerCase())
+
+    const filtered = categories.filter(
+      (cat) =>
+        cat.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        cat.description?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        cat.uniqueId?.toLowerCase().includes(searchQuery.toLowerCase()),
     );
-    
+
     setFilteredCategories(filtered);
-  };
+  }, [searchQuery, categories]);
+
+  useEffect(() => {
+    fetchCategories();
+  }, [fetchCategories]);
+
+  useEffect(() => {
+    handleSearch();
+  }, [handleSearch]);
 
   const handleImageSelect = (e) => {
     const file = e.target.files[0];
     if (file) {
       if (file.size > 5 * 1024 * 1024) {
-        toast.error('Image size must be less than 5MB');
+        toast.error("Image size must be less than 5MB");
         return;
       }
-      
-      if (!file.type.startsWith('image/')) {
-        toast.error('Please select a valid image file');
+
+      if (!file.type.startsWith("image/")) {
+        toast.error("Please select a valid image file");
         return;
       }
-      
+
       setImageFile(file);
-      
+
       const reader = new FileReader();
       reader.onloadend = () => {
         setImagePreview(reader.result);
@@ -123,31 +134,31 @@ const FilmCategory = () => {
     try {
       const presignResponse = await categoryAPI.getThumbnailUploadUrl({
         fileName: file.name,
-        contentType: file.type
+        contentType: file.type,
       });
-      
+
       if (!presignResponse.success || !presignResponse.data) {
-        throw new Error('Failed to get upload URL');
+        throw new Error("Failed to get upload URL");
       }
-      
+
       const { uploadUrl, publicS3Url } = presignResponse.data;
-      
+
       const uploadSuccess = await categoryAPI.uploadToS3(uploadUrl, file);
-      
+
       if (!uploadSuccess) {
-        throw new Error('Failed to upload image');
+        throw new Error("Failed to upload image");
       }
-      
+
       return publicS3Url;
     } catch (error) {
-      console.error('Error uploading image:', error);
+      console.error("Error uploading image:", error);
       throw error;
     }
   };
 
   const handleAdd = () => {
     setCurrentCategory(null);
-    setFormData({ name: '', description: '', isActive: true, image: null });
+    setFormData({ name: "", description: "", isActive: true, image: null });
     setImagePreview(null);
     setImageFile(null);
     setIsModalOpen(true);
@@ -157,9 +168,9 @@ const FilmCategory = () => {
     setCurrentCategory(category);
     setFormData({
       name: category.name,
-      description: category.description || '',
+      description: category.description || "",
       isActive: category.isActive !== false,
-      image: category.image || category.thumbnail
+      image: category.image || category.thumbnail,
     });
     setImagePreview(category.image || category.thumbnail);
     setImageFile(null);
@@ -168,26 +179,27 @@ const FilmCategory = () => {
 
   const handleDelete = async (id) => {
     const confirmed = await confirm({
-      title: 'Delete Category',
-      message: 'Are you sure you want to delete this category? This action cannot be undone.',
-      confirmText: 'Delete',
-      type: 'danger'
+      title: "Delete Category",
+      message:
+        "Are you sure you want to delete this category? This action cannot be undone.",
+      confirmText: "Delete",
+      type: "danger",
     });
 
     if (!confirmed) return;
 
     try {
       const response = await categoryAPI.deleteCategory(id);
-      
+
       if (response.success) {
-        setCategories(categories.filter(cat => cat.id !== id));
-        toast.success('Category deleted successfully');
+        setCategories(categories.filter((cat) => cat.id !== id));
+        toast.success("Category deleted successfully");
       } else {
-        toast.error(response.message || 'Failed to delete category');
+        toast.error(response.message || "Failed to delete category");
       }
     } catch (error) {
-      console.error('Error deleting category:', error);
-      toast.error(error.message || 'Failed to delete category');
+      console.error("Error deleting category:", error);
+      toast.error(error.message || "Failed to delete category");
     }
   };
 
@@ -195,73 +207,77 @@ const FilmCategory = () => {
     try {
       const response = await categoryAPI.changeIsActive({
         id: id,
-        isActive: !currentStatus
+        isActive: !currentStatus,
       });
-      
+
       if (response.success) {
-        setCategories(categories.map(cat =>
-          cat.id === id ? { ...cat, isActive: !currentStatus } : cat
-        ));
-        toast.success(`Category ${!currentStatus ? 'activated' : 'deactivated'} successfully`);
+        setCategories(
+          categories.map((cat) =>
+            cat.id === id ? { ...cat, isActive: !currentStatus } : cat,
+          ),
+        );
+        toast.success(
+          `Category ${!currentStatus ? "activated" : "deactivated"} successfully`,
+        );
       } else {
-        toast.error(response.message || 'Failed to update category status');
+        toast.error(response.message || "Failed to update category status");
       }
     } catch (error) {
-      console.error('Error toggling category:', error);
-      toast.error(error.message || 'Failed to update category status');
+      console.error("Error toggling category:", error);
+      toast.error(error.message || "Failed to update category status");
     }
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    
+
     if (!formData.name.trim()) {
-      toast.error('Category name is required');
+      toast.error("Category name is required");
       return;
     }
-    
+
     try {
       setUploading(true);
-      
+
       let imageUrl = formData.image;
-      
+
       if (imageFile) {
         imageUrl = await uploadImage(imageFile);
       }
-      
+
       const categoryData = {
         name: formData.name.trim(),
         description: formData.description.trim(),
         isActive: formData.isActive,
-        image: imageUrl || ''
+        image: imageUrl || "",
       };
-      
+
       if (currentCategory) {
         categoryData.id = currentCategory.id;
         const response = await categoryAPI.updateCategory(categoryData);
-        
+
         if (response.success) {
-          toast.success('Category updated successfully');
+          toast.success("Category updated successfully");
           fetchCategories();
         } else {
-          toast.error(response.message || 'Failed to update category');
+          toast.error(response.message || "Failed to update category");
         }
       } else {
         const response = await categoryAPI.createCategory(categoryData);
-        
+
         if (response.success) {
-          toast.success('Category created successfully');
+          toast.success("Category created successfully");
           fetchCategories();
         } else {
-          toast.error(response.message || 'Failed to create category');
+          toast.error(response.message || "Failed to create category");
         }
       }
-      
+
       setIsModalOpen(false);
       clearImage();
     } catch (error) {
-      console.error('Error saving category:', error);
-      toast.error(error.message || 'Failed to save category');
+      console.error("Error saving category:", error);
+      toast.error(error.message || "Failed to save category");
     } finally {
       setUploading(false);
     }
@@ -269,18 +285,18 @@ const FilmCategory = () => {
 
   const numberedCategories = filteredCategories.map((category, index) => ({
     ...category,
-    rowNumber: (currentPage - 1) * itemsPerPage + index + 1
+    rowNumber: (currentPage - 1) * itemsPerPage + index + 1,
   }));
 
   const columns = [
     {
-      header: 'NO',
-      accessor: 'rowNumber',
-      width: '60px'
+      header: "NO",
+      accessor: "rowNumber",
+      width: "60px",
     },
-   
+
     {
-      header: 'CATEGORY IMAGE',
+      header: "CATEGORY IMAGE",
       render: (row) => (
         <div className="category-image">
           {row.image || row.thumbnail ? (
@@ -291,11 +307,11 @@ const FilmCategory = () => {
             </div>
           )}
         </div>
-      )
+      ),
     },
     {
-      header: 'CATEGORY NAME',
-      accessor: 'name',
+      header: "CATEGORY NAME",
+      accessor: "name",
       render: (row) => (
         <div className="category-name-cell">
           <div className="category-name">{row.name}</div>
@@ -303,32 +319,34 @@ const FilmCategory = () => {
             <div className="category-desc">{row.description}</div>
           )}
         </div>
-      )
+      ),
     },
     {
-      header: 'TOTAL SERIES',
+      header: "TOTAL SERIES",
       render: (row) => (
-        <span className="total-count">{row.totalSeries || row.totalMovies || 0}</span>
-      )
+        <span className="total-count">
+          {row.totalSeries || row.totalMovies || 0}
+        </span>
+      ),
     },
     {
-      header: 'DATE',
+      header: "DATE",
       render: (row) => {
         const date = row.createdAt ? new Date(row.createdAt) : new Date();
-        return date.toLocaleDateString('en-GB');
-      }
+        return date.toLocaleDateString("en-GB");
+      },
     },
     {
-      header: 'ACTIVE',
+      header: "ACTIVE",
       render: (row) => (
         <Toggle
           checked={row.isActive !== false}
           onChange={() => handleToggle(row.id, row.isActive !== false)}
         />
-      )
+      ),
     },
     {
-      header: 'ACTION',
+      header: "ACTION",
       render: (row) => (
         <div className="action-buttons">
           <button
@@ -346,8 +364,8 @@ const FilmCategory = () => {
             <FaTrash />
           </button>
         </div>
-      )
-    }
+      ),
+    },
   ];
 
   return (
@@ -386,7 +404,7 @@ const FilmCategory = () => {
           <div className="pagination-controls">
             <button
               className="pagination-btn"
-              onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+              onClick={() => setCurrentPage((prev) => Math.max(1, prev - 1))}
               disabled={currentPage === 1}
             >
               &lt;
@@ -402,11 +420,11 @@ const FilmCategory = () => {
               } else {
                 pageNum = currentPage - 2 + idx;
               }
-              
+
               return (
                 <button
                   key={pageNum}
-                  className={`pagination-btn ${currentPage === pageNum ? 'active' : ''}`}
+                  className={`pagination-btn ${currentPage === pageNum ? "active" : ""}`}
                   onClick={() => setCurrentPage(pageNum)}
                 >
                   {pageNum}
@@ -415,7 +433,9 @@ const FilmCategory = () => {
             })}
             <button
               className="pagination-btn"
-              onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+              onClick={() =>
+                setCurrentPage((prev) => Math.min(totalPages, prev + 1))
+              }
               disabled={currentPage === totalPages}
             >
               &gt;
@@ -430,7 +450,7 @@ const FilmCategory = () => {
           setIsModalOpen(false);
           clearImage();
         }}
-        title={currentCategory ? 'Edit Film Category' : 'Add Film Category'}
+        title={currentCategory ? "Edit Film Category" : "Add Film Category"}
         size="medium"
       >
         <form onSubmit={handleSubmit} className="category-form">
@@ -474,7 +494,9 @@ const FilmCategory = () => {
             <input
               type="text"
               value={formData.name}
-              onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+              onChange={(e) =>
+                setFormData({ ...formData, name: e.target.value })
+              }
               className="input-field"
               placeholder="Enter category name"
               required
@@ -485,7 +507,9 @@ const FilmCategory = () => {
             <label className="form-label">Description</label>
             <textarea
               value={formData.description}
-              onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+              onChange={(e) =>
+                setFormData({ ...formData, description: e.target.value })
+              }
               className="input-field"
               placeholder="Enter category description"
               rows="3"
@@ -497,7 +521,9 @@ const FilmCategory = () => {
               <input
                 type="checkbox"
                 checked={formData.isActive}
-                onChange={(e) => setFormData({ ...formData, isActive: e.target.checked })}
+                onChange={(e) =>
+                  setFormData({ ...formData, isActive: e.target.checked })
+                }
               />
               <span>Active Category</span>
             </label>
@@ -520,7 +546,11 @@ const FilmCategory = () => {
               className="btn btn-primary"
               disabled={uploading}
             >
-              {uploading ? 'Uploading...' : currentCategory ? 'Update' : 'Create'}
+              {uploading
+                ? "Uploading..."
+                : currentCategory
+                  ? "Update"
+                  : "Create"}
             </button>
           </div>
         </form>

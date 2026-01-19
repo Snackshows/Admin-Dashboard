@@ -1,115 +1,128 @@
-import React, { useState, useEffect } from 'react';
-import { FaEdit, FaTrash, FaPlus, FaSearch, FaLock, FaLockOpen } from 'react-icons/fa';
-import Modal from '../components/common/Modal';
-import Table from '../components/common/Table';
-import Toggle from '../components/common/Toggle';
-import { useToast } from '../components/common/Toast';
-import { useConfirm } from '../components/common/ConfirmDialog';
-import { SkeletonTable } from '../components/common/Loading';
-import { episodesAPI, seriesAPI } from '../services/api';
-import './EpisodeList.css';
+import React, { useState, useEffect, useCallback } from "react";
+import { FaEdit, FaTrash, FaPlus, FaSearch } from "react-icons/fa";
+import Modal from "../components/common/Modal";
+import Table from "../components/common/Table";
+import Toggle from "../components/common/Toggle";
+import { useToast } from "../components/common/Toast";
+import { useConfirm } from "../components/common/ConfirmDialog";
+import { SkeletonTable } from "../components/common/Loading";
+import { episodesAPI, seriesAPI } from "../services/api";
+import "./EpisodeList.css";
 
 const EpisodeList = () => {
   const toast = useToast();
   const confirm = useConfirm();
-  
+
   const [episodes, setEpisodes] = useState([]);
   const [series, setSeries] = useState([]);
-  const [selectedSeries, setSelectedSeries] = useState('');
+  const [selectedSeries, setSelectedSeries] = useState("");
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [currentEpisode, setCurrentEpisode] = useState(null);
-  const [searchQuery, setSearchQuery] = useState('');
+  const [searchQuery, setSearchQuery] = useState("");
   const [loading, setLoading] = useState(true);
   const [formData, setFormData] = useState({
-    seriesId: '',
-    episodeNumber: '',
-    videoUrl: '',
-    videoImage: '',
-    duration: '',
-    coin: '',
+    seriesId: "",
+    episodeNumber: "",
+    videoUrl: "",
+    videoImage: "",
+    duration: "",
+    coin: "",
     isLocked: false,
-    releaseDate: ''
+    releaseDate: "",
   });
+
+  const fetchSeries = useCallback(async () => {
+    try {
+      const response = await seriesAPI.getAllSeries();
+
+      if (response.success && response.data) {
+        const seriesData = Array.isArray(response.data)
+          ? response.data
+          : response.data.series
+            ? response.data.series
+            : [];
+        setSeries(seriesData);
+        console.log("Series loaded:", seriesData.length);
+      }
+    } catch (error) {
+      console.error("Error fetching series:", error);
+      toast.error(error.message || "Failed to load series");
+    } finally {
+      setLoading(false);
+    }
+  }, [toast]);
+
+  const fetchEpisodes = useCallback(
+    async (seriesId) => {
+      try {
+        setLoading(true);
+
+        const response = await episodesAPI.getAllEpisodes({ seriesId });
+
+        if (response.success && response.data) {
+          const episodesData = Array.isArray(response.data)
+            ? response.data
+            : response.data.episodes
+              ? response.data.episodes
+              : [];
+
+          const transformedEpisodes = episodesData.map((item) => ({
+            id: item.id,
+            seriesId: item.seriesId,
+            episodeNumber: item.episodeNumber,
+            videoUrl: item.videoUrl || "",
+            videoImage: item.videoImage || "",
+            duration: item.duration || 0,
+            coin: item.coin || 0,
+            isLocked: item.isLocked || false,
+            releaseDate: item.releaseDate
+              ? new Date(item.releaseDate).toLocaleDateString("en-GB")
+              : "",
+            createdAt: item.createdAt
+              ? new Date(item.createdAt).toLocaleDateString("en-GB")
+              : "",
+          }));
+
+          setEpisodes(transformedEpisodes);
+          console.log("Episodes loaded:", transformedEpisodes.length);
+        }
+      } catch (error) {
+        console.error("Error fetching episodes:", error);
+        toast.error(error.message || "Failed to load episodes");
+        setEpisodes([]);
+      } finally {
+        setLoading(false);
+      }
+    },
+    [toast],
+  );
 
   useEffect(() => {
     fetchSeries();
-  }, []);
+  }, [fetchSeries]);
 
   useEffect(() => {
     if (selectedSeries) {
       fetchEpisodes(selectedSeries);
     }
-  }, [selectedSeries]);
-
-  const fetchSeries = async () => {
-    try {
-      const response = await seriesAPI.getAllSeries();
-      
-      if (response.success && response.data) {
-        const seriesData = Array.isArray(response.data) ? response.data :
-                          response.data.series ? response.data.series : [];
-        setSeries(seriesData);
-        console.log('Series loaded:', seriesData.length);
-      }
-    } catch (error) {
-      console.error('Error fetching series:', error);
-      toast.error(error.message || 'Failed to load series');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const fetchEpisodes = async (seriesId) => {
-    try {
-      setLoading(true);
-      
-      const response = await episodesAPI.getAllEpisodes({ seriesId });
-      
-      if (response.success && response.data) {
-        const episodesData = Array.isArray(response.data) ? response.data :
-                            response.data.episodes ? response.data.episodes : [];
-        
-        const transformedEpisodes = episodesData.map((item) => ({
-          id: item.id,
-          seriesId: item.seriesId,
-          episodeNumber: item.episodeNumber,
-          videoUrl: item.videoUrl || '',
-          videoImage: item.videoImage || '',
-          duration: item.duration || 0,
-          coin: item.coin || 0,
-          isLocked: item.isLocked || false,
-          releaseDate: item.releaseDate ? new Date(item.releaseDate).toLocaleDateString('en-GB') : '',
-          createdAt: item.createdAt ? new Date(item.createdAt).toLocaleDateString('en-GB') : ''
-        }));
-        
-        setEpisodes(transformedEpisodes);
-        console.log('Episodes loaded:', transformedEpisodes.length);
-      }
-    } catch (error) {
-      console.error('Error fetching episodes:', error);
-      toast.error(error.message || 'Failed to load episodes');
-      setEpisodes([]);
-    } finally {
-      setLoading(false);
-    }
-  };
+  }, [selectedSeries, fetchEpisodes]);
 
   const handleAdd = () => {
     if (!selectedSeries) {
-      toast.error('Please select a series first');
+      toast.error("Please select a series first");
       return;
     }
 
     setCurrentEpisode(null);
     setFormData({
       seriesId: selectedSeries,
-      episodeNumber: '',
-      videoUrl: '',
-      videoImage: '',
-      duration: '',
-      coin: '',
+      episodeNumber: "",
+      videoUrl: "",
+      videoImage: "",
+      duration: "",
+      coin: "",
       isLocked: false,
-      releaseDate: ''
+      releaseDate: "",
     });
     setIsModalOpen(true);
   };
@@ -124,28 +137,29 @@ const EpisodeList = () => {
       duration: episode.duration,
       coin: episode.coin,
       isLocked: episode.isLocked,
-      releaseDate: episode.releaseDate
+      releaseDate: episode.releaseDate,
     });
     setIsModalOpen(true);
   };
 
   const handleDelete = async (id) => {
     const confirmed = await confirm({
-      title: 'Delete Episode',
-      message: 'Are you sure you want to delete this episode? This action cannot be undone.',
-      confirmText: 'Delete',
-      type: 'danger'
+      title: "Delete Episode",
+      message:
+        "Are you sure you want to delete this episode? This action cannot be undone.",
+      confirmText: "Delete",
+      type: "danger",
     });
 
     if (!confirmed) return;
 
     try {
       await episodesAPI.deleteEpisode(id);
-      setEpisodes(episodes.filter(item => item.id !== id));
-      toast.success('Episode deleted successfully');
+      setEpisodes(episodes.filter((item) => item.id !== id));
+      toast.success("Episode deleted successfully");
     } catch (error) {
-      console.error('Error deleting episode:', error);
-      toast.error(error.message || 'Failed to delete episode');
+      console.error("Error deleting episode:", error);
+      toast.error(error.message || "Failed to delete episode");
     }
   };
 
@@ -153,25 +167,29 @@ const EpisodeList = () => {
     try {
       await episodesAPI.updateEpisode({
         id: id,
-        isLocked: !currentStatus
+        isLocked: !currentStatus,
       });
-      
-      setEpisodes(episodes.map(item =>
-        item.id === id ? { ...item, isLocked: !currentStatus } : item
-      ));
-      
-      toast.success(`Episode ${!currentStatus ? 'locked' : 'unlocked'} successfully`);
+
+      setEpisodes(
+        episodes.map((item) =>
+          item.id === id ? { ...item, isLocked: !currentStatus } : item,
+        ),
+      );
+
+      toast.success(
+        `Episode ${!currentStatus ? "locked" : "unlocked"} successfully`,
+      );
     } catch (error) {
-      console.error('Error toggling lock:', error);
-      toast.error(error.message || 'Failed to update episode');
+      console.error("Error toggling lock:", error);
+      toast.error(error.message || "Failed to update episode");
     }
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    
+
     if (!formData.episodeNumber || !formData.videoUrl) {
-      toast.error('Please fill in all required fields');
+      toast.error("Please fill in all required fields");
       return;
     }
 
@@ -179,31 +197,31 @@ const EpisodeList = () => {
       if (currentEpisode) {
         await episodesAPI.updateEpisode({
           id: currentEpisode.id,
-          ...formData
+          ...formData,
         });
-        toast.success('Episode updated successfully');
+        toast.success("Episode updated successfully");
       } else {
         await episodesAPI.createEpisode(formData);
-        toast.success('Episode created successfully');
+        toast.success("Episode created successfully");
       }
-      
+
       setIsModalOpen(false);
       fetchEpisodes(selectedSeries);
     } catch (error) {
-      console.error('Error saving episode:', error);
-      toast.error(error.message || 'Failed to save episode');
+      console.error("Error saving episode:", error);
+      toast.error(error.message || "Failed to save episode");
     }
   };
 
-  const filteredEpisodes = episodes.filter(item =>
-    item.episodeNumber.toString().includes(searchQuery)
+  const filteredEpisodes = episodes.filter((item) =>
+    item.episodeNumber.toString().includes(searchQuery),
   );
 
   const columns = [
-    { header: 'NO', render: (row, index) => index + 1, width: '60px' },
-    { header: 'EPISODE #', accessor: 'episodeNumber' },
+    { header: "NO", render: (row, index) => index + 1, width: "60px" },
+    { header: "EPISODE #", accessor: "episodeNumber" },
     {
-      header: 'THUMBNAIL',
+      header: "THUMBNAIL",
       render: (row) => (
         <div className="episode-thumbnail">
           {row.videoImage ? (
@@ -212,25 +230,26 @@ const EpisodeList = () => {
             <div className="no-thumbnail">No Image</div>
           )}
         </div>
-      )
+      ),
     },
     {
-      header: 'DURATION',
-      render: (row) => `${Math.floor(row.duration / 60)}:${(row.duration % 60).toString().padStart(2, '0')}`
+      header: "DURATION",
+      render: (row) =>
+        `${Math.floor(row.duration / 60)}:${(row.duration % 60).toString().padStart(2, "0")}`,
     },
-    { header: 'COINS', accessor: 'coin' },
+    { header: "COINS", accessor: "coin" },
     {
-      header: 'LOCKED',
+      header: "LOCKED",
       render: (row) => (
         <Toggle
           checked={row.isLocked}
           onChange={() => handleToggleLock(row.id, row.isLocked)}
         />
-      )
+      ),
     },
-    { header: 'RELEASE DATE', accessor: 'releaseDate' },
+    { header: "RELEASE DATE", accessor: "releaseDate" },
     {
-      header: 'ACTION',
+      header: "ACTION",
       render: (row) => (
         <div className="action-buttons">
           <button
@@ -248,8 +267,8 @@ const EpisodeList = () => {
             <FaTrash />
           </button>
         </div>
-      )
-    }
+      ),
+    },
   ];
 
   return (
@@ -264,8 +283,10 @@ const EpisodeList = () => {
               className="series-select"
             >
               <option value="">Select Series</option>
-              {series.map(item => (
-                <option key={item.id} value={item.id}>{item.name}</option>
+              {series.map((item) => (
+                <option key={item.id} value={item.id}>
+                  {item.name}
+                </option>
               ))}
             </select>
           </div>
@@ -279,8 +300,8 @@ const EpisodeList = () => {
               onChange={(e) => setSearchQuery(e.target.value)}
             />
           </div>
-          <button 
-            className="btn-primary" 
+          <button
+            className="btn-primary"
             onClick={handleAdd}
             disabled={!selectedSeries}
           >
@@ -307,7 +328,7 @@ const EpisodeList = () => {
       <Modal
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
-        title={currentEpisode ? 'Edit Episode' : 'Add New Episode'}
+        title={currentEpisode ? "Edit Episode" : "Add New Episode"}
       >
         <form onSubmit={handleSubmit}>
           <div className="form-group">
@@ -315,7 +336,9 @@ const EpisodeList = () => {
             <input
               type="number"
               value={formData.episodeNumber}
-              onChange={(e) => setFormData({ ...formData, episodeNumber: e.target.value })}
+              onChange={(e) =>
+                setFormData({ ...formData, episodeNumber: e.target.value })
+              }
               required
               min="1"
             />
@@ -326,7 +349,9 @@ const EpisodeList = () => {
             <input
               type="text"
               value={formData.videoUrl}
-              onChange={(e) => setFormData({ ...formData, videoUrl: e.target.value })}
+              onChange={(e) =>
+                setFormData({ ...formData, videoUrl: e.target.value })
+              }
               required
               placeholder="https://..."
             />
@@ -337,7 +362,9 @@ const EpisodeList = () => {
             <input
               type="text"
               value={formData.videoImage}
-              onChange={(e) => setFormData({ ...formData, videoImage: e.target.value })}
+              onChange={(e) =>
+                setFormData({ ...formData, videoImage: e.target.value })
+              }
               placeholder="https://..."
             />
           </div>
@@ -347,7 +374,9 @@ const EpisodeList = () => {
             <input
               type="number"
               value={formData.duration}
-              onChange={(e) => setFormData({ ...formData, duration: e.target.value })}
+              onChange={(e) =>
+                setFormData({ ...formData, duration: e.target.value })
+              }
               min="0"
             />
           </div>
@@ -357,7 +386,9 @@ const EpisodeList = () => {
             <input
               type="number"
               value={formData.coin}
-              onChange={(e) => setFormData({ ...formData, coin: e.target.value })}
+              onChange={(e) =>
+                setFormData({ ...formData, coin: e.target.value })
+              }
               min="0"
             />
           </div>
@@ -367,7 +398,9 @@ const EpisodeList = () => {
             <input
               type="date"
               value={formData.releaseDate}
-              onChange={(e) => setFormData({ ...formData, releaseDate: e.target.value })}
+              onChange={(e) =>
+                setFormData({ ...formData, releaseDate: e.target.value })
+              }
             />
           </div>
 
@@ -376,18 +409,24 @@ const EpisodeList = () => {
               <input
                 type="checkbox"
                 checked={formData.isLocked}
-                onChange={(e) => setFormData({ ...formData, isLocked: e.target.checked })}
+                onChange={(e) =>
+                  setFormData({ ...formData, isLocked: e.target.checked })
+                }
               />
               Locked (requires coins to unlock)
             </label>
           </div>
 
           <div className="form-actions">
-            <button type="button" className="btn-secondary" onClick={() => setIsModalOpen(false)}>
+            <button
+              type="button"
+              className="btn-secondary"
+              onClick={() => setIsModalOpen(false)}
+            >
               Cancel
             </button>
             <button type="submit" className="btn-primary">
-              {currentEpisode ? 'Update' : 'Create'} Episode
+              {currentEpisode ? "Update" : "Create"} Episode
             </button>
           </div>
         </form>

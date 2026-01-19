@@ -1,12 +1,5 @@
-import React, { useState, useEffect } from "react";
-import {
-  FaEdit,
-  FaEye,
-  FaHistory,
-  FaSearch,
-  FaBan,
-  FaCheckCircle,
-} from "react-icons/fa";
+import React, { useState, useEffect, useCallback } from "react";
+import { FaEye, FaSearch } from "react-icons/fa";
 import { useNavigate } from "react-router-dom";
 import Table from "../components/common/Table";
 import Toggle from "../components/common/Toggle";
@@ -24,25 +17,20 @@ const Users = () => {
   const [users, setUsers] = useState([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [loading, setLoading] = useState(false);
-  const [totalUsers, setTotalUsers] = useState(0);
 
-  useEffect(() => {
-    fetchUsers();
-  }, []);
-
-  const fetchUsers = async () => {
+  const fetchUsers = useCallback(async () => {
     try {
       setLoading(true);
-      
+
       const response = await usersAPI.getAllUsers();
       console.log(response);
 
       if (response.success && response.data) {
         const usersData = response.data.user || response.data;
-        
+
         const transformedUsers = usersData.map((user) => ({
           id: user.id,
-          name: user.name || 'Guest',
+          name: user.name || "Guest",
           uniqueId: user.id.substring(0, 8),
           email: user.email,
           coins: user.coins || 0,
@@ -50,14 +38,13 @@ const Users = () => {
           date: user.joinedOn
             ? new Date(user.joinedOn).toLocaleDateString("en-GB")
             : user.createdAt
-            ? new Date(user.createdAt).toLocaleDateString("en-GB")
-            : new Date().toLocaleDateString("en-GB"),
+              ? new Date(user.createdAt).toLocaleDateString("en-GB")
+              : new Date().toLocaleDateString("en-GB"),
           blocked: user.isBlocked || false,
           isActive: user.isActive !== false,
         }));
 
         setUsers(transformedUsers);
-        setTotalUsers(response.data.totalUsers || transformedUsers.length);
 
         console.log("Users loaded:", transformedUsers.length);
       } else {
@@ -65,13 +52,17 @@ const Users = () => {
         toast.error("Failed to load users");
       }
     } catch (error) {
-      console.error('Error fetching users:', error);
-      toast.error(error.message || 'Failed to load users');
+      console.error("Error fetching users:", error);
+      toast.error(error.message || "Failed to load users");
       setUsers([]);
     } finally {
       setLoading(false);
     }
-  };
+  }, [toast]);
+
+  useEffect(() => {
+    fetchUsers();
+  }, [fetchUsers]);
 
   const handleBlockToggle = async (userId, currentStatus) => {
     const confirmed = await confirm({
@@ -90,12 +81,18 @@ const Users = () => {
         id: userId,
         isBlocked: !currentStatus,
       });
-      
-      setUsers(users.map(user => 
-        user.id === userId ? { ...user, blocked: !currentStatus } : user
-      ));
-      
-      toast.success(currentStatus ? 'User unblocked successfully' : 'User blocked successfully');
+
+      setUsers(
+        users.map((user) =>
+          user.id === userId ? { ...user, blocked: !currentStatus } : user,
+        ),
+      );
+
+      toast.success(
+        currentStatus
+          ? "User unblocked successfully"
+          : "User blocked successfully",
+      );
     } catch (error) {
       console.error("Error toggling user block status:", error);
       toast.error(error.message || "Failed to update user status");
@@ -106,29 +103,22 @@ const Users = () => {
     navigate(`/user-profile/${userId}`);
   };
 
-  const handleEdit = (userId) => {
-    toast.info('Edit feature coming soon!');
-  };
-
-  const handleHistory = (userId) => {
-    toast.info('History feature coming soon!');
-  };
-
-  const filteredUsers = users.filter(user =>
-    user.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    user.uniqueId.includes(searchQuery)
+  const filteredUsers = users.filter(
+    (user) =>
+      user.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      user.uniqueId.includes(searchQuery),
   );
 
   const numberedUsers = filteredUsers.map((user, index) => ({
     ...user,
-    rowNumber: index + 1
+    rowNumber: index + 1,
   }));
 
   const columns = [
     {
-      header: 'NO',
-      accessor: 'rowNumber',
-      width: '60px'
+      header: "NO",
+      accessor: "rowNumber",
+      width: "60px",
     },
     {
       header: "USER NAME",
@@ -165,7 +155,7 @@ const Users = () => {
       header: "ACTION",
       render: (row) => (
         <div className="action-buttons">
-          <button 
+          <button
             className="action-btn view-btn"
             onClick={() => handleViewProfile(row.id)}
             title="View Profile"
