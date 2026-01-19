@@ -22,7 +22,7 @@ const VIPPlan = () => {
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
   const [editMode, setEditMode] = useState(false);
-  const [currentPlan, setCurrentPlan] = useState(null);
+  // const [currentPlan, setCurrentPlan] = useState(null);
 
   // Form state
   const [formData, setFormData] = useState({
@@ -64,7 +64,7 @@ const VIPPlan = () => {
 
   const handleAddNew = () => {
     setEditMode(false);
-    setCurrentPlan(null);
+    // setCurrentPlan(null);
     setFormData({
       name: "",
       description: "",
@@ -89,7 +89,7 @@ const VIPPlan = () => {
       if (response.success) {
         const planData = response.data;
         setEditMode(true);
-        setCurrentPlan(planData);
+        // setCurrentPlan(planData);
 
         setFormData({
           id: planData.id,
